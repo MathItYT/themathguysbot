@@ -16,8 +16,8 @@ Join our Discord server [https://discord.gg/NgzZqS4Hg9](https://discord.gg/NgzZq
 ## Want to see it in action?
 This video is taken from one of the bot's interactions in the server
 
-![Manim demo](https://raw.githubusercontent.com/MathItYT/tmg-bot/refs/heads/master/assets/manim-demo.mp4)
+![Manim demo](https://raw.githubusercontent.com/MathItYT/themathguysbot/refs/heads/main/assets/manim-demo.gif)
 
-![LaTeX and math demo](https://raw.githubusercontent.com/MathItYT/tmg-bot/refs/heads/master/assets/latex-math-demo.png)
+![LaTeX and math demo](https://raw.githubusercontent.com/MathItYT/themathguysbot/refs/heads/main/assets/latex-math-demo.png)
 
 Join our server and see the bot live in action!
