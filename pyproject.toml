@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "tmg-bot"
+version = "0.1.0"
+description = ""
+authors = ["MathItYT <benjamin.ubilla@uc.cl>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+py-cord = "^2.6.1"
+python-dotenv = "^1.0.1"
+numpy = "^2.2.3"
+sympy = "^1.13.3"
+emoji = "^2.14.1"
+requests = "^2.32.3"
+manim = "^0.19.0"
+
+[tool.poetry.scripts]
+tmg-bot = "tmg_bot.__main__:main"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
