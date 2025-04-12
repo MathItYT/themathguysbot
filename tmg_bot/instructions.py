@@ -219,4 +219,6 @@ You are an expert math solver. Your task is to solve the problem stated in the p
 ```python
 (0.1 * 10 + 0.2 * 10) / 10
 ```
+- Remember to always use valid Python code with the calculator function, like not using undeclared variables or invalid syntax.
+- Your calculator inputs will go to `eval()` function, so the last line of your code must be the result of the calculation as a string.
 """

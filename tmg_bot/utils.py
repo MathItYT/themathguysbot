@@ -274,8 +274,13 @@ async def render_manim(message: discord.Message, scene_class_name: str, descript
     io.seek(0)
     coder_history.append(
         {
-            "text": io.read(),
-        },
+            "role": "user",
+            "parts": [
+                {
+                    "text": io.read(),
+                },
+            ]
+        }
     )
     coder_response = requests.post(
         "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
@@ -291,12 +296,7 @@ async def render_manim(message: discord.Message, scene_class_name: str, descript
                     },
                 ]
             },
-            "contents": [
-                {
-                    "parts": coder_history,
-                    "role": "user",
-                },
-            ],
+            "contents": coder_history,
             "generationConfig": {
                 "response_mime_type": "application/json",
                 "response_schema": {
@@ -315,6 +315,8 @@ async def render_manim(message: discord.Message, scene_class_name: str, descript
     coder_results = coder_response.json()
     coder_response.raise_for_status()
     coder_response = json.loads(coder_results["candidates"][0]["content"]["parts"][0]["text"])
+    content = coder_results["candidates"][0]["content"]
+    coder_history.append(content)
     code = coder_response["code"]
     try:
         ctx = manim.__dict__
@@ -340,17 +342,23 @@ async def render_manim(message: discord.Message, scene_class_name: str, descript
             b64_video_or_image = base64.b64encode(f.read()).decode("utf-8")
         coder_history.append(
             {
-                "text": "Your code was successfully rendered.",
+                "role": "user",
+                "parts": [{
+                    "text": "Your code was successfully rendered.",
+                }]
             }
         )
         mime_type = "video/mp4" if video_path.exists() else "image/png"
         return True, b64_video_or_image, mime_type
 
 
+debugger_history: list[dict[str, Any]] = []
+
+
 async def fix_manim_errors(message: discord.Message, code: str, scene_class_name: str, error: Exception) -> tuple[bool, str | None, str | None]:
     """Fix Manim errors."""
     error_message = f"{type(error).__name__}: {error}"
-    history = [
+    parts = [
         {
             "text": f"""
     Please fix the errors in this Manim code.
@@ -371,6 +379,12 @@ async def fix_manim_errors(message: discord.Message, code: str, scene_class_name
     """
         },
     ]
+    debugger_history.append(
+        {
+            "parts": parts,
+            "role": "user",
+        }
+    )
     for _ in range(5):
         debugger_response = requests.post(
             "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
@@ -386,12 +400,7 @@ async def fix_manim_errors(message: discord.Message, code: str, scene_class_name
                         },
                     ]
                 },
-                "contents": [
-                    {
-                        "parts": history,
-                        "role": "user",
-                    },
-                ],
+                "contents": debugger_history,
                 "generationConfig": {
                     "response_mime_type": "application/json",
                     "response_schema": {
@@ -428,7 +437,7 @@ async def fix_manim_errors(message: discord.Message, code: str, scene_class_name
         print(f"Fixed code:\n{code}")
         print(f"Explanation:\n{explanation}")
         print(f"Changes:\n{changes}")
-        history.extend(debugger_results["candidates"][0]["content"]["parts"])
+        debugger_history.append(debugger_results["candidates"][0]["content"])
         try:
             ctx = manim.__dict__
             ctx["ResponseScene"] = ResponseScene
@@ -437,8 +446,11 @@ async def fix_manim_errors(message: discord.Message, code: str, scene_class_name
             print(f"Error rendering Manim scene: {e}")
             error_message = f"{type(e).__name__}: {e}"
             print(f"Error message: {error_message}")
-            history.append(
+            debugger_history.append(
                 {
+                    "role": "user",
+                    "parts": [
+                        {
                     "text": f"""
 Another error occurred while trying to render the fixed code. The new error message is:
 
@@ -447,6 +459,8 @@ Another error occurred while trying to render the fixed code. The new error mess
 ```
 Please fix the errors in this Manim code.
 """,
+                        }
+                    ]
                 }
             )
             continue
@@ -465,12 +479,15 @@ Please fix the errors in this Manim code.
                     await message.channel.send(file=discord.File(f, "manim_scene.mp4"), reference=message)
             coder_history.append(
                 {
-                    "text": f"""The code had errors, the fixed code is:
+                    "role": "user",
+                    "parts": [{
+                        "text": f"""The code had errors, the fixed code is:
 
 ```python
 {code}
 ```
 """
+                    }]
                 }
             )
             with open(video_path if video_path.exists() else image_path, "rb") as f:
