@@ -723,7 +723,9 @@ This is the error message:
         print(f"Explanation:\n{explanation}")
         code_fix_history.append(code_fix_results["candidates"][0]["content"])
         try:
-            exec(code)
+            result = eval(fixed_code)
+            result = str(result)
+            print(f"Result: {result}")
         except Exception as e:
             print(f"Error executing code: {e}")
             error_message = f"{type(e).__name__}: {e}"
@@ -768,5 +770,5 @@ The code has been fixed, the fixed code is:
                     ]
                 }
             )
-            return fixed_code
+            return result
     return "An error occurred while executing the code."
