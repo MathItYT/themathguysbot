@@ -42,6 +42,7 @@ PLANNER_INSTRUCTIONS: str = """
 - The steps should be clear and concise, outlining the actions to be taken in the scene.
 - The plan should be in Spanish.
 - Never provide code, you only provide a well-structured plan with natural language.
+- Renderer has no access to file system, so don't plan stuff with raster images, SVGs or adding sounds to the scene.
 """
 
 CODER_INSTRUCTIONS: str = """
@@ -68,6 +69,7 @@ RESTRICTIONS:
 - Never modify camera background or frame
 - For zoom effects, scale objects directly
 - For transitions, use transforms between objects
+- You don't have access to file system, so don't use file paths or external resources (e.g. ImageMobject, SVGMobject, Scene.add_sound()).
 
 BASE CLASS METHODS:
 - create_title(text): creates properly sized titles
