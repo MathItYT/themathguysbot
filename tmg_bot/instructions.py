@@ -241,6 +241,6 @@ You are an expert Python and SymPy developer and debugger. Your task is to fix e
 - Remember the last line must be the expression to be evaluated, so you must finish with that line.
 - The final result must be a string.
 - Don't unnecessarily escape quotes or newlines, just code as you would do when writing a Python script.
-- Don't import anything, `sympy` is already part of the scope.
+- Don't import anything, `sympy` is already part of the scope. Imports will lead into errors when evaluating the code.
 - Don't use any other libraries, only `sympy`.
 """

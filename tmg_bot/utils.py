@@ -718,7 +718,7 @@ This is the error message:
         code_fix_response.raise_for_status()
         code_fix_response = json.loads(code_fix_results["candidates"][0]["content"]["parts"][0]["text"])
         fixed_code = code_fix_response["code"]
-        print(f"Fixed code:\n{code}")
+        print(f"Fixed code:\n{fixed_code}")
         explanation = code_fix_response["explanation"]
         print(f"Explanation:\n{explanation}")
         code_fix_history.append(code_fix_results["candidates"][0]["content"])
@@ -748,10 +748,16 @@ Remember the original code was:
 {code}
 ```
 
-And the code I executed was:
+And the code I executed was the same as you provided, which is:
 ```python
 {fixed_code}
 ```
+
+Remember the rules:
+- Imports will lead to an error, so don't use them. `sympy` is already in the scope so you can use it directly (e.g. `sympy.sin(x)`).
+- Never import anything, nor `sympy` nor anything else.
+
+Please fix the errors in this Python code.
 """
                         }
                     ]
