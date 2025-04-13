@@ -223,4 +223,5 @@ You are an expert math solver. Your task is to solve the problem stated in the p
 ```
 - Remember to always use valid Python code with the calculator function, like not using undeclared variables or invalid syntax.
 - Your calculator inputs will go to `eval()` function, so the last line of your code must be the result of the calculation as a string.
+- Before writing the final response, calculate all arithmetic operations, algebraic manipulations or simple derivatives or integrals using the sympy_calculator function.
 """

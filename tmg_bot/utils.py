@@ -563,7 +563,7 @@ def solve_math(problem_statement: str) -> dict[str, Any]:
     )
     there_was_function_call: bool = True
     while there_was_function_call:
-        there_was_function_call_child: bool = False
+        function_response: dict[str, Any] | None = None
         problem_response = requests.post(
             "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
             params={
@@ -609,30 +609,31 @@ def solve_math(problem_statement: str) -> dict[str, Any]:
         solve_math_history.append(content)
         for part in parts:
             if "functionCall" in part:
+                if function_response is None:
+                    function_response = {
+                        "role": "function",
+                        "parts": []
+                    }
                 name = part["functionCall"]["name"]
                 args = part["functionCall"]["args"]
                 expr = eval(args["python_expr_to_evaluate"], {"sympy": sympy})
                 result = str(expr)
                 print(f"Result: {result}")
-                solve_math_history.append(
+                function_response["parts"].append(
                     {
-                        "role": "function",
-                        "parts": [{
-                            "functionResponse": {
+                        "functionResponse": {
+                            "name": name,
+                            "response": {
                                 "name": name,
-                                "response": {
-                                    "name": name,
-                                    "content": result,
-                                }
+                                "content": result,
                             }
-                        }]
+                        }
                     }
                 )
-                there_was_function_call_child = True
             if "text" in part:
                 text = part["text"]
                 print(f"Text: {text}")
-        there_was_function_call = there_was_function_call_child
+        there_was_function_call = function_response is not None
     return {
-        "solved_problem": text,
+        "solved_problem": text
     }
