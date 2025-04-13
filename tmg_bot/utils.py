@@ -736,7 +736,7 @@ This is the error message:
                     "parts": [
                         {
                             "text": f"""
-Another error occurred while trying to execute the fixed code. The new error message is:
+Another error occurred while trying to execute. The new error message is:
 
 ```
 {error_message}
@@ -746,6 +746,11 @@ Remember the original code was:
 
 ```python
 {code}
+```
+
+And the code I executed was:
+```python
+{fixed_code}
 ```
 """
                         }
