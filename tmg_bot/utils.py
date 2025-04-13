@@ -13,7 +13,14 @@ import numpy as np
 import sympy
 
 from .tex_templates import DEFAULT_TEX_TEMPLATE
-from .instructions import PLANNER_INSTRUCTIONS, CODER_INSTRUCTIONS, DEBUGGER_INSTRUCTIONS, PROBLEM_STATE_INSTRUCTIONS, MATH_SOLVE_INSTRUCTIONS
+from .instructions import (
+    PLANNER_INSTRUCTIONS,
+    CODER_INSTRUCTIONS,
+    DEBUGGER_INSTRUCTIONS,
+    PROBLEM_STATE_INSTRUCTIONS,
+    MATH_SOLVE_INSTRUCTIONS,
+    CODE_FIXER_INSTRUCTIONS
+)
 from .regex import mentions, double_quotes, single_quotes
 
 
@@ -616,8 +623,11 @@ def solve_math(problem_statement: str) -> dict[str, Any]:
                     }
                 name = part["functionCall"]["name"]
                 args = part["functionCall"]["args"]
-                expr = eval(args["python_expr_to_evaluate"], {"sympy": sympy})
-                result = str(expr)
+                try:
+                    expr = eval(args["python_expr_to_evaluate"], {"sympy": sympy})
+                    result = str(expr)
+                except Exception as e:
+                    result = fix_code_errors(args["python_expr_to_evaluate"], f"{type(e).__name__}: {e}")
                 print(f"Result: {result}")
                 function_response["parts"].append(
                     {
@@ -640,3 +650,123 @@ def solve_math(problem_statement: str) -> dict[str, Any]:
     return {
         "solved_problem": text
     }
+
+
+code_fix_history: list[dict[str, Any]] = []
+
+
+def fix_code_errors(code: str, error: str) -> str:
+    """Fix code errors."""
+    code_fix_history.append(
+        {
+            "role": "user",
+            "parts": [
+                {
+                    "text": f"""
+Please fix the errors in this Python code.
+
+```python
+{code}
+```
+
+This is the error message:
+```
+{error}
+```
+"""
+                }
+            ],
+        }
+    )
+    for _ in range(5):
+        code_fix_response = requests.post(
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+            params={
+                "key": os.getenv("GOOGLE_API_KEY"),
+            },
+            headers={"Content-Type": "application/json"},
+            json={
+                "system_instruction": {
+                    "parts": [
+                        {
+                            "text": CODE_FIXER_INSTRUCTIONS,
+                        },
+                    ]
+                },
+                "contents": code_fix_history,
+                "generationConfig": {
+                    "response_mime_type": "application/json",
+                    "response_schema": {
+                        "type": "OBJECT",
+                        "properties": {
+                            "code": {
+                                "type": "STRING",
+                                "description": "Fixed code.",
+                            },
+                            "explanation": {
+                                "type": "STRING",
+                                "description": "Explanation of the error and the fix, with the changes you made.",
+                            },
+                        },
+                        "required": ["code", "explanation"],
+                    },
+                }
+            }
+        )
+        code_fix_results = code_fix_response.json()
+        print(code_fix_results)
+        code_fix_response.raise_for_status()
+        code_fix_response = json.loads(code_fix_results["candidates"][0]["content"]["parts"][0]["text"])
+        fixed_code = code_fix_response["code"]
+        print(f"Fixed code:\n{code}")
+        explanation = code_fix_response["explanation"]
+        print(f"Explanation:\n{explanation}")
+        code_fix_history.append(code_fix_results["candidates"][0]["content"])
+        try:
+            exec(code)
+        except Exception as e:
+            print(f"Error executing code: {e}")
+            error_message = f"{type(e).__name__}: {e}"
+            print(f"Error message: {error_message}")
+            code_fix_history.append(
+                {
+                    "role": "user",
+                    "parts": [
+                        {
+                            "text": f"""
+Another error occurred while trying to execute the fixed code. The new error message is:
+
+```
+{error_message}
+```
+
+Remember the original code was:
+
+```python
+{code}
+```
+"""
+                        }
+                    ]
+                }
+            )
+            continue
+        else:
+            code_fix_history.append(
+                {
+                    "role": "user",
+                    "parts": [
+                        {
+                            "text": f"""
+The code has been fixed, the fixed code is:
+
+```python
+{fixed_code}
+```
+"""
+                        }
+                    ]
+                }
+            )
+            return fixed_code
+    return "An error occurred while executing the code."

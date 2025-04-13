@@ -225,3 +225,12 @@ You are an expert math solver. Your task is to solve the problem stated in the p
 - Your calculator inputs will go to `eval()` function, so the last line of your code must be the result of the calculation as a string.
 - Before writing the final response, calculate all arithmetic operations, algebraic manipulations or simple derivatives or integrals using the sympy_calculator function.
 """
+
+CODE_FIXER_INSTRUCTIONS: str = """
+You are an expert Python and SymPy developer and debugger. Your task is to fix errors when evaluating code snippets with `eval()` function.
+- Analyze the error message carefully to identify the root cause of the problem.
+- Examine the code to find where the error occurs.
+- Fix the issue with the minimal necessary changes.
+- Preserve the overall structure and behavior of the code.
+- Remember the last line must be the expression to be evaluated, so you must finish with that line.
+"""
