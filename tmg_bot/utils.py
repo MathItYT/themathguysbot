@@ -633,6 +633,9 @@ def solve_math(problem_statement: str) -> dict[str, Any]:
             if "text" in part:
                 text = part["text"]
                 print(f"Text: {text}")
+        
+        if function_response is not None:
+            solve_math_history.append(function_response)
         there_was_function_call = function_response is not None
     return {
         "solved_problem": text
