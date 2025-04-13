@@ -7,7 +7,6 @@ DEFAULT_TEX_TEMPLATE: str = """
 \\usepackage{{mlmodern}}
 \\usepackage{{hyperref}}
 \\usepackage[outputdir=temp]{{minted}}
-\\def\\markdownOptionOutputDir{{temp}}
 \\usepackage[smartEllipses,hashEnumerators,fencedCode]{{markdown}}
 \\markdownSetup{{renderers={{
   link = {{\href{{#2}}{{#1}}}}
