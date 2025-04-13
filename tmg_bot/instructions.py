@@ -224,6 +224,12 @@ You are an expert math solver. Your task is to solve the problem stated in the p
 - Remember to always use valid Python code with the calculator function, like not using undeclared variables or invalid syntax.
 - Your calculator inputs will go to `eval()` function, so the last line of your code must be the result of the calculation as a string.
 - Before writing the final response, calculate all arithmetic operations, algebraic manipulations or simple derivatives or integrals using the sympy_calculator function.
+- `sympy` is a variable in the scope, which corresponds to the SymPy library. You can use it to create symbols, expressions, and perform calculations. Access it like this:
+```python
+sympy.symbols('x y z')
+sympy.sin(x) + sympy.cos(y)
+```
+- Also, there's no need to import the library, it's already present in the scope.
 """
 
 CODE_FIXER_INSTRUCTIONS: str = """
@@ -233,4 +239,8 @@ You are an expert Python and SymPy developer and debugger. Your task is to fix e
 - Fix the issue with the minimal necessary changes.
 - Preserve the overall structure and behavior of the code.
 - Remember the last line must be the expression to be evaluated, so you must finish with that line.
+- The final result must be a string.
+- Don't unnecessarily escape quotes or newlines, just code as you would do when writing a Python script.
+- Don't import anything, `sympy` is already part of the scope.
+- Don't use any other libraries, only `sympy`.
 """
