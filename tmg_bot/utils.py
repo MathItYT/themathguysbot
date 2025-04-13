@@ -52,16 +52,15 @@ async def render_tex(message: discord.Message) -> None:
     md = fix_tex_bugs(message.content)
     channel = message.channel
     temp_tex = temp_dir / f"{message.id}.tex"
-    temp_div = temp_dir / f"{message.id}.dvi"
     temp_png = temp_dir / f"{message.id}.png"
     temp_tex.write_text(DEFAULT_TEX_TEMPLATE.format(md=md), encoding="utf-8")
     try:
-        subprocess.run(["latex", "-interaction=nonstopmode", "-shell-escape", "-output-directory", temp_dir, temp_tex], check=True)
+        subprocess.run(" ".join(["cd", "temp", "&&", "latex", "-interaction=nonstopmode", "-shell-escape", f"{message.id}.tex"]), check=True, shell=True)
     except subprocess.CalledProcessError as e:
         print(f"Error rendering LaTeX: {e}")
         return
     try:
-        subprocess.run(["dvipng", "-T", "tight", "-o", temp_png, "-bg", "Transparent", "-D", "500", temp_div], check=True)
+        subprocess.run(" ".join(["cd", "temp", "&&", "dvipng", "-T", "tight", "-o", f"{message.id}.png", "-bg", "Transparent", "-D", "500", f"{message.id}.div"]), check=True, shell=True)
     except subprocess.CalledProcessError as e:
         print(f"Error rendering LaTeX: {e}")
         return
