@@ -60,7 +60,7 @@ async def render_tex(message: discord.Message) -> None:
         print(f"Error rendering LaTeX: {e}")
         return
     try:
-        subprocess.run(" ".join(["cd", "temp", "&&", "dvipng", "-T", "tight", "-o", f"{message.id}.png", "-bg", "Transparent", "-D", "500", f"{message.id}.div"]), check=True, shell=True)
+        subprocess.run(" ".join(["cd", "temp", "&&", "dvipng", "-T", "tight", "-o", f"{message.id}.png", "-bg", "Transparent", "-D", "500", f"{message.id}.dvi"]), check=True, shell=True)
     except subprocess.CalledProcessError as e:
         print(f"Error rendering LaTeX: {e}")
         return
