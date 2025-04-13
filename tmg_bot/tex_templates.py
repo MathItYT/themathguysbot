@@ -6,8 +6,15 @@ DEFAULT_TEX_TEMPLATE: str = """
 \\usepackage{{xcolor}}
 \\usepackage{{mlmodern}}
 \\usepackage{{hyperref}}
-\\usepackage{{minted}}
+\\usepackage[outputdir=temp]{{minted}}
 \\def\\markdownOptionOutputDir{{temp}}
+\\ExplSyntaxOn
+\\str_new:N
+  \\g_luabridge_output_dirname_str
+\\str_gset:NV
+  \\g_luabridge_output_dirname_str
+  \\markdownOptionOutputDir
+\\ExplSyntaxOff
 \\usepackage[smartEllipses,hashEnumerators,fencedCode]{{markdown}}
 \\markdownSetup{{renderers={{
   link = {{\href{{#2}}{{#1}}}}
