@@ -498,16 +498,13 @@ class AI(commands.Cog):
                             elif name == "render_manim":
                                 success, b64_video, mime_type = await render_manim(message, **args)
                                 function_response["parts"].append({
-                                    "role": "function",
-                                    "parts": [{
-                                        "functionResponse": {
+                                    "functionResponse": {
+                                        "name": name,
+                                        "response": {
                                             "name": name,
-                                            "response": {
-                                                "name": name,
-                                                "content": "The video has been rendered successfully." if success else "There was an error rendering the video.",
-                                            }
+                                            "content": "The video has been rendered successfully." if success else "There was an error rendering the video.",
                                         }
-                                    }]
+                                    }
                                 })
                             elif name == "math_problem_state":
                                 output = math_problem_state(**args)
@@ -524,7 +521,7 @@ class AI(commands.Cog):
                                 )
                             elif name == "solve_math":
                                 output = solve_math(**args)
-                                AI.history.append(
+                                function_response["parts"].append(
                                     {
                                         "functionResponse": {
                                             "name": name,
@@ -535,6 +532,6 @@ class AI(commands.Cog):
                                         }
                                     }
                                 )
-                            AI.history.append(function_response)
-                                
+                    if function_response is not None:
+                        AI.history.append(function_response)
                     there_was_function_call = function_response is not None
