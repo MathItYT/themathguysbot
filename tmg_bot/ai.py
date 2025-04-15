@@ -137,9 +137,13 @@ class AI(commands.Cog):
                                                             "description": "User will let you know some considerations, you must take them into account.",
                                                         },
                                                         "description": "Considerations for the scene.",
-                                                    }
+                                                    },
+                                                    "is_3d": {
+                                                        "type": "boolean",
+                                                        "description": "Whether the scene is 3D or not.",
+                                                    },
                                                 },
-                                                "required": ["title", "description", "steps", "considerations"],
+                                                "required": ["title", "description", "steps", "considerations", "is_3d"],
                                             },
                                         }
                                     ],
@@ -219,18 +223,15 @@ class AI(commands.Cog):
                                     }
                                 })
                             elif name == "render_manim":
-                                success = await render_manim(after, **args)
+                                err_or_suc_msg = await render_manim(after, **args)
                                 function_response["parts"].append({
-                                    "role": "function",
-                                    "parts": [{
-                                        "functionResponse": {
+                                    "functionResponse": {
+                                        "name": name,
+                                        "response": {
                                             "name": name,
-                                            "response": {
-                                                "name": name,
-                                                "content": "The video has been rendered successfully." if success else "There was an error rendering the video.",
-                                            }
+                                            "content": err_or_suc_msg
                                         }
-                                    }]
+                                    }
                                 })
                             elif name == "math_problem_state":
                                 output = math_problem_state(**args)
@@ -364,9 +365,13 @@ class AI(commands.Cog):
                                                             "description": "User will let you know some considerations, you must take them into account.",
                                                         },
                                                         "description": "Considerations for the scene.",
-                                                    }
+                                                    },
+                                                    "is_3d": {
+                                                        "type": "boolean",
+                                                        "description": "Whether the scene is 3D or not.",
+                                                    },
                                                 },
-                                                "required": ["title", "description", "steps", "considerations"],
+                                                "required": ["title", "description", "steps", "considerations", "is_3d"],
                                             },
                                         }
                                     ],
@@ -446,13 +451,13 @@ class AI(commands.Cog):
                                     }
                                 })
                             elif name == "render_manim":
-                                success = await render_manim(message, **args)
+                                err_or_suc_msg = await render_manim(message, **args)
                                 function_response["parts"].append({
                                     "functionResponse": {
                                         "name": name,
                                         "response": {
                                             "name": name,
-                                            "content": "The video has been rendered successfully." if success else "There was an error rendering the video.",
+                                            "content": err_or_suc_msg
                                         }
                                     }
                                 })

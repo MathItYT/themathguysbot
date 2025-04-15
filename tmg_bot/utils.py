@@ -11,6 +11,7 @@ import manim
 import math
 import numpy as np
 import sympy
+import time
 
 from .function_plot import FunctionPlot
 from .title_animation import TitleAnimation
@@ -99,15 +100,20 @@ def internet_search(query: str) -> dict[str, str]:
 
 manim.config.tex_template = manim.TexTemplate(
     preamble=r"""
-\usepackage[spanish]{{babel}}
-\usepackage{{amsmath}}
-\usepackage{{amssymb}}
-\usepackage{{xcolor}}
-\usepackage{{mlmodern}}
+\usepackage[spanish]{babel}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{xcolor}
+\usepackage{mlmodern}
 """
 )
 manim.config.background_color = "#161616"
 manim.config.disable_caching = True
+
+
+class TimeoutError(Exception):
+    """Custom exception for timeout errors."""
+    pass
 
 
 class ResponseScene(manim.Scene):
@@ -125,6 +131,8 @@ class ResponseScene(manim.Scene):
         self.successful_data = []
 
     def construct(self) -> None:
+        self.stamp = time.time()
+        self.add_updater(lambda _: self.check_for_timeout())
         if self.data is not None:
             title = self.create_title(self.title)
             description = self.create_description(self.description)
@@ -197,13 +205,64 @@ class ResponseScene(manim.Scene):
                         x_length=x_length,
                         y_length=y_length,
                     )
+                elif data["name"] == "show_sphere":
+                    color_1 = data["args"]["color_1"]
+                    color_2 = data["args"]["color_2"]
+                    step = data["step"]
+                    self.show_sphere(
+                        step=step,
+                        color_1=color_1,
+                        color_2=color_2,
+                    )
                 else:
                     print(f"Unknown data name: {data['name']}")
                 self.fade_out_scene()
             return
+        
+        steps = "\n".join([f"{i}. {s}" for i, s in enumerate(self.steps, start=1)])
+        ResponseScene.select_template_history.append(
+            {
+                "role": "user",
+                "parts": [
+                    {
+                        "text": f"""Now we're building a totally new scene.
 
+This is the title:
+```
+{self.title}
+```
+
+This is the description:
+```
+{self.description}
+```
+
+Here are all the steps:
+```
+{steps}
+```
+
+Methods and attributes available for `self` are:
+```
+{dir(self)}
+```
+
+Camera methods and attributes available are:
+```
+{dir(self.camera)}
+```
+"""
+                    }
+                ]
+            }
+        )
         for i, step in enumerate(self.steps, start=1):
             self.make_step(step, i)
+    
+    def check_for_timeout(self) -> None:
+        """Check if the scene is taking too long to render (more than 2 minutes)"""
+        if time.time() - self.stamp > 120:
+            raise TimeoutError("The maximum time for rendering scenes is 2 minutes. Please render scenes that aren't that heavy.")
     
     def make_step(self, step: str, index: int) -> None:
         self.select_template(step, index)
@@ -236,6 +295,16 @@ You're allowed to choose a template for doing multiple steps at once, but you mu
 And the considerations are:
 ```
 {considerations}
+```
+
+Remember available methods and attributes for `self` are:
+```
+{dir(self)}
+```
+
+Camera methods and attributes available are:
+```
+{dir(self.camera)}
 ```
 """
                     }
@@ -401,6 +470,24 @@ And the considerations are:
                                     },
                                 },
                                 {
+                                    "name": "show_sphere",
+                                    "description": "Shows a sphere and rotates camera to enhance 3D view.",
+                                    "parameters": {
+                                        "type": "OBJECT",
+                                        "properties": {
+                                            "color_1": {
+                                                "type": "STRING",
+                                                "description": "First color of the sphere's checkerboard fill. Must be a built-in Manim color. (e.g. WHITE, RED, BLUE, etc.). If user specifies a color, put it as a valid hex color between quotes (e.g. '#FF0000'), without escaping them. Preferably use BLUE_D.",
+                                            },
+                                            "color_2": {
+                                                "type": "STRING",
+                                                "description": "Second color of the sphere's checkerboard fill. Must be a built-in Manim color. (e.g. WHITE, RED, BLUE, etc.). If user specifies a color, put it as a valid hex color between quotes (e.g. '#FF0000'), without escaping them. Preferably use BLUE_E.",
+                                            },
+                                        },
+                                        "required": ["color_1", "color_2"],
+                                    }
+                                },
+                                {
                                     "name": "do_nothing",
                                     "description": "Do nothing. Meant to be used when already did the step with the previous template.",
                                     "parameters": {
@@ -490,6 +577,14 @@ And the considerations are:
                             x_length=x_length,
                             y_length=y_length,
                         )
+                    elif name == "show_sphere":
+                        color_1 = args["color_1"]
+                        color_2 = args["color_2"]
+                        self.show_sphere(
+                            color_1=color_1,
+                            color_2=color_2,
+                            step=step,
+                        )
                     elif name == "do_nothing":
                         reason = args["reason"]
                         print(f"Do nothing's reason: {reason}")
@@ -548,6 +643,26 @@ Do it. Execute the tool.
                     }
                 )
             return
+        except TimeoutError as e:
+            print("TimeoutError: The maximum time for rendering scenes is 2 minutes. Please render scenes that aren't that heavy.")
+            if self.data is None:
+                ResponseScene.select_template_history.append(
+                    {
+                        "role": "function",
+                        "parts": [
+                            {
+                                "functionResponse": {
+                                    "name": "custom_template",
+                                    "response": {
+                                        "name": "custom_template",
+                                        "content": f"TimeoutError: {e}\nWhen timeout is reached, your work for the scene is discarded and finished, so it's not possible to continue working on it.",
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                )
+            raise e
         except Exception as e:
             error_message = f"{type(e).__name__}: {e}"
             print(f"Error message: {error_message}")
@@ -782,6 +897,70 @@ self.wait(2)
                     ]
                 }
             )
+    
+    def show_sphere(
+        self,
+        step: str,
+        color_1: str,
+        color_2: str,
+    ) -> None:
+        manim_color_1 = eval(color_1, manim.__dict__.copy())
+        manim_color_2 = eval(color_2, manim.__dict__.copy())
+        sphere = manim.Sphere(
+            checkerboard_colors=[manim_color_1, manim_color_2],
+        )
+        self.play(manim.Create(sphere))
+        self.begin_3dillusion_camera_rotation(rate=2)
+        self.wait(2)
+        self.stop_3dillusion_camera_rotation()
+        self.move_camera(phi=0, theta=-90 * manim.DEGREES, gamma=0, run_time=1)
+        self.wait(2)
+        if self.data is None:
+            self.successful_data.append(
+                {
+                    "name": "show_sphere",
+                    "args": {
+                        "color_1": color_1,
+                        "color_2": color_2,
+                    },
+                    "step": step,
+                }
+            )
+            ResponseScene.select_template_history.append(
+                {
+                    "role": "function",
+                    "parts": [
+                        {
+                            "functionResponse": {
+                                "name": "show_sphere",
+                                "response": {
+                                    "name": "show_sphere",
+                                    "content": f"""
+The sphere was shown successfully.
+
+This is equivalent to the following custom template:
+
+```python
+sphere = Sphere(
+    checkerboard_colors=[{color_1}, {color_2}],
+)
+self.play(Create(sphere))
+
+self.begin_3dillusion_camera_rotation(rate=2)
+self.wait(2)
+self.stop_3dillusion_camera_rotation()
+# Back to default angles (phi=0, theta=-90 * DEGREES, gamma=0)
+self.move_camera(phi=0, theta=-90 * DEGREES, gamma=0, run_time=1)
+self.wait(2)
+```
+"""
+                                }
+                            }
+                        }
+                    ]
+                }
+            )
+
 
     def debug_custom_code(self, step: str, code: str, error: str) -> bool:
         self.clear()
@@ -804,6 +983,16 @@ Remember the rules:
 - Don't make the entire code, we're in the `construct` method, so just make the code that goes in there.
 - Scene's variable is `self`, so use it directly.
 - Don't import Manim, it's already imported.
+
+Available methods and attributes for `self` are:
+```
+{dir(self)}
+```
+
+Available camera methods and attributes are:
+```
+{dir(self.camera)}
+```
 """
                     }
                 ]
@@ -908,6 +1097,48 @@ The code has been fixed, the successful code is:
                     }
                 )
             return True
+        except TimeoutError as e:
+            print("Timeout error")
+            ResponseScene.debugger_history.append(
+                {
+                    "role": "user",
+                    "parts": [
+                        {
+                            "text": f"""
+The code was too heavy as to be executed. Your work for this scene has finished :(
+"""
+                        }
+                    ]
+                }
+            )
+            ResponseScene.select_template_history.append(
+                {
+                    "role": "function",
+                    "parts": [
+                        {
+                            "functionResponse": {
+                                "name": "custom_template",
+                                "response": {
+                                    "name": "custom_template",
+                                    "content": f"""
+It seems the code was too heavy as to be executed. Your work for this scene has finished :(
+"""
+                                }
+                            }
+                        }
+                    ]
+                }
+            )
+            self.successful_data.append(
+                {
+                    "name": "custom_template",
+                    "args": {
+                        "code": fixed_code,
+                    },
+                    "step": step,
+                }
+            )
+            raise e
         except Exception as e:
             print(f"Error executing code: {e}")
             error_message = f"{type(e).__name__}: {e}"
@@ -937,6 +1168,16 @@ Remember the rules:
 - Don't make the entire code, we're in the `construct` method, so just make the code that goes in there.
 - Scene's variable is `self`, so use it directly.
 - Don't import Manim, it's already imported.
+
+Available methods and attributes for `self` are:
+```
+{dir(self)}
+```
+
+Available camera methods and attributes are:
+```
+{dir(self.camera)}
+```
 """
                         }
                     ]
@@ -1040,6 +1281,11 @@ Remember the rules:
         else:
             raise ValueError("Invalid layout type. Use 'horizontal', 'vertical', or 'grid'.")
         return self.ensure_in_frame(gr)
+
+
+class ResponseScene3D(manim.ThreeDScene, ResponseScene):
+    """3D version of the ResponseScene."""
+    pass
 
 
 latex_history: list[dict[str, Any]] = []
@@ -1155,23 +1401,40 @@ The LaTeX code has been rendered, the successful code is:
 coder_history: list[dict[str, Any]] = []
 
 
-async def render_manim(message: discord.Message, title: str, description: str, steps: list[str] = [], considerations: list[str] = []) -> tuple[bool, str | None, str | None]:
+async def render_manim(message: discord.Message, title: str, description: str, is_3d: bool, steps: list[str] = [], considerations: list[str] = []) -> str:
     """Render the Manim scene."""
-    scene = ResponseScene(title, description, steps, considerations)
-    scene.render()
-    scene = ResponseScene(title, description, steps, considerations, scene.successful_data)
-    scene.render()
+    manim.config.output_file = "ResponseScene"
+    manim.config.format = "mp4"
+    try:
+        if not is_3d:
+            scene = ResponseScene(title, description, steps, considerations)
+            scene.render()
+        else:
+            scene = ResponseScene3D(title=title, description=description, steps=steps, considerations=considerations)
+            scene.render()
+        manim.config.output_file = "ResponseScene"
+        manim.config.format = "mp4"
+        if not is_3d:
+            scene = ResponseScene(title, description, steps, considerations, scene.successful_data)
+            scene.render()
+        else:
+            scene = ResponseScene3D(title=title, description=description, steps=steps, considerations=considerations, data=scene.successful_data)
+            scene.render()
+    except TimeoutError:
+        return "TimeoutError: The request took more than the limit (2 minutes) to process. Please don't render too heavy scenes."
+    manim.config.output_file = "ResponseScene"
+    manim.config.format = "mp4"
     media_dir = pathlib.Path("media")
     file_path = media_dir / "videos" / "1080p60" / "ResponseScene.mp4"
     if not file_path.exists():
-        return False
+        return "Rendered file not found. Please try again."
     with open(file_path, "rb") as f:
         video_file = discord.File(f, "ResponseScene.mp4")
     if isinstance(message.channel, discord.DMChannel):
         await message.author.send(file=video_file, reference=message)
     else:
         await message.channel.send(file=video_file, reference=message)
-    return True
+    return "It has been rendered succesfully"
 
 debugger_history: list[dict[str, Any]] = []
 
