@@ -6,7 +6,7 @@ from io import StringIO
 import os
 from typing import Any
 
-from .utils import attachment_parts, render_tex, internet_search, plan_manim_scene, render_manim, math_problem_state, solve_math
+from .utils import attachment_parts, render_tex, internet_search, render_manim, math_problem_state, solve_math
 from .instructions import ACADEMIC_INSTRUCTIONS
 from .regex import tex_message
 from .locks import ai_lock
@@ -109,28 +109,14 @@ class AI(commands.Cog):
                                 {
                                     "functionDeclarations": [
                                         {
-                                            "name": "manim_scene_planner",
-                                            "description": "Plan a manim scene.",
-                                            "parameters": {
-                                                "type": "object",
-                                                "properties": {
-                                                    "context": {
-                                                        "type": "string",
-                                                        "description": "The context and details to make a plan about.",
-                                                    },
-                                                },
-                                                "required": ["context"],
-                                            },
-                                        },
-                                        {
                                             "name": "render_manim",
                                             "description": "Internally it creates a code for a Manim scene and renders it.",
                                             "parameters": {
                                                 "type": "object",
                                                 "properties": {
-                                                    "scene_class_name": {
+                                                    "title": {
                                                         "type": "string",
-                                                        "description": "The Python class name for the scene.",
+                                                        "description": "The scene's title.",
                                                     },
                                                     "description": {
                                                         "type": "string",
@@ -153,7 +139,7 @@ class AI(commands.Cog):
                                                         "description": "Considerations for the scene.",
                                                     }
                                                 },
-                                                "required": ["scene_class_name", "description", "steps", "considerations"],
+                                                "required": ["title", "description", "steps", "considerations"],
                                             },
                                         }
                                     ],
@@ -232,19 +218,8 @@ class AI(commands.Cog):
                                         }
                                     }
                                 })
-                            elif name == "manim_scene_planner":
-                                output = plan_manim_scene(**args)
-                                function_response["parts"].append({
-                                    "functionResponse": {
-                                        "name": name,
-                                        "response": {
-                                            "name": name,
-                                            "content": output,
-                                        }
-                                    }
-                                })
                             elif name == "render_manim":
-                                success, b64_video, mime_type = await render_manim(after, **args)
+                                success = await render_manim(after, **args)
                                 function_response["parts"].append({
                                     "role": "function",
                                     "parts": [{
@@ -361,28 +336,14 @@ class AI(commands.Cog):
                                 {
                                     "functionDeclarations": [
                                         {
-                                            "name": "manim_scene_planner",
-                                            "description": "Plan a manim scene.",
-                                            "parameters": {
-                                                "type": "object",
-                                                "properties": {
-                                                    "context": {
-                                                        "type": "string",
-                                                        "description": "The context and details to make a plan about.",
-                                                    },
-                                                },
-                                                "required": ["context"],
-                                            },
-                                        },
-                                        {
                                             "name": "render_manim",
                                             "description": "Internally it creates a code for a Manim scene and renders it.",
                                             "parameters": {
                                                 "type": "object",
                                                 "properties": {
-                                                    "scene_class_name": {
+                                                    "title": {
                                                         "type": "string",
-                                                        "description": "The Python class name for the scene.",
+                                                        "description": "The scene's title.",
                                                     },
                                                     "description": {
                                                         "type": "string",
@@ -405,7 +366,7 @@ class AI(commands.Cog):
                                                         "description": "Considerations for the scene.",
                                                     }
                                                 },
-                                                "required": ["scene_class_name", "description", "steps", "considerations"],
+                                                "required": ["title", "description", "steps", "considerations"],
                                             },
                                         }
                                     ],
@@ -457,13 +418,13 @@ class AI(commands.Cog):
                     AI.history.append(content)
                     for part in parts:
                         if "text" in part:
-                            if len(part["text"]) > 0:
-                                if isinstance(message.channel, discord.DMChannel):
-                                    
-                                    for i in range(0, len(part["text"]), 2000):
+                            if isinstance(message.channel, discord.DMChannel):
+                                for i in range(0, len(part["text"]), 2000):
+                                    if len(part["text"][i:i+2000].strip()) > 0:
                                         await message.author.send(part["text"][i:i+2000], reference=message)
-                                else:
-                                    for i in range(0, len(part["text"]), 2000):
+                            else:
+                                for i in range(0, len(part["text"]), 2000):
+                                    if len(part["text"][i:i+2000].strip()) > 0:
                                         await message.channel.send(part["text"][i:i+2000], reference=message)
                         if "functionCall" in part:
                             if function_response is None:
@@ -484,19 +445,8 @@ class AI(commands.Cog):
                                         }
                                     }
                                 })
-                            elif name == "manim_scene_planner":
-                                output = plan_manim_scene(**args)
-                                function_response["parts"].append({
-                                    "functionResponse": {
-                                        "name": name,
-                                        "response": {
-                                            "name": name,
-                                            "content": output,
-                                        }
-                                    }
-                                })
                             elif name == "render_manim":
-                                success, b64_video, mime_type = await render_manim(message, **args)
+                                success = await render_manim(message, **args)
                                 function_response["parts"].append({
                                     "functionResponse": {
                                         "name": name,

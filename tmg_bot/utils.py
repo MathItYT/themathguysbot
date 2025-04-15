@@ -4,19 +4,21 @@ import pathlib
 import subprocess
 import base64
 import os
-from io import StringIO
 import json
 import requests
 from typing import Any
 import manim
+import math
 import numpy as np
 import sympy
 
+from .function_plot import FunctionPlot
+from .title_animation import TitleAnimation
 from .tex_templates import DEFAULT_TEX_TEMPLATE
 from .instructions import (
-    PLANNER_INSTRUCTIONS,
-    CODER_INSTRUCTIONS,
-    DEBUGGER_INSTRUCTIONS,
+    TEXT_TO_LATEX_INSTRUCTIONS,
+    MANIM_BUILDER_INSTRUCTIONS,
+    CUSTOM_CODE_DEBUGGER_INSTRUCTIONS,
     PROBLEM_STATE_INSTRUCTIONS,
     MATH_SOLVE_INSTRUCTIONS,
     CODE_FIXER_INSTRUCTIONS
@@ -95,98 +97,876 @@ def internet_search(query: str) -> dict[str, str]:
     return {"results": results}
 
 
-def plan_manim_scene(context: str) -> dict[str, Any]:
-    """Plan the manim scene using the context."""
-    history = [
-        {
-            "text": context,
-        }
-    ]
-    plan_response = requests.post(
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
-        params={
-            "key": os.getenv("GOOGLE_API_KEY"),
-        },
-        headers={"Content-Type": "application/json"},
-        json={
-            "contents": [
-                {
-                    "parts": history,
-                    "role": "user",
-                },
-            ],
-            "system_instruction": {
-                "parts": [
-                    {
-                        "text": PLANNER_INSTRUCTIONS,
-                    },
-                ]
-            },
-            "generationConfig": {
-                "response_mime_type": "application/json",
-                "response_schema": {
-                    "type": "OBJECT",
-                    "properties": {
-                        "title": {
-                            "type": "STRING",
-                            "description": "Scene class name, must be a valid Python class name.",
-                        },
-                        "description": {
-                            "type": "STRING",
-                            "description": "Scene description.",
-                        },
-                        "steps": {
-                            "type": "ARRAY",
-                            "items": {
-                                "type": "STRING",
-                                "description": "Step to follow.",
-                            },
-                            "description": "Clear and concise steps outlining the actions to be taken in the scene.",
-                        },
-                    },
-                    "required": ["title", "description", "steps"],
-                }
-            },
-        }
-    )
-    plan_results = plan_response.json()
-    print(plan_results)
-    plan_response.raise_for_status()
-    return json.loads(plan_results["candidates"][0]["content"]["parts"][0]["text"])
-
-
-full_code: str = """
-{code}
-
-config.tex_template = TexTemplate(
-    preamble=r\"\"\"
-    \\usepackage[spanish]{{babel}}
-    \\usepackage{{amsmath}}
-    \\usepackage{{amssymb}}
-    \\usepackage{{xcolor}}
-    \\usepackage{{mlmodern}}
-    \"\"\"
-)
-config.background_color = "#161616"
-config.disable_caching = True
-config.output_file = "{scene_class_name}"
-
-scene = {scene_class_name}()
-scene.render()
+manim.config.tex_template = manim.TexTemplate(
+    preamble=r"""
+\usepackage[spanish]{{babel}}
+\usepackage{{amsmath}}
+\usepackage{{amssymb}}
+\usepackage{{xcolor}}
+\usepackage{{mlmodern}}
 """
+)
+manim.config.background_color = "#161616"
+manim.config.disable_caching = True
 
 
 class ResponseScene(manim.Scene):
+    select_template_history: list[dict[str, Any]] = []
+    debugger_history: list[dict[str, Any]] = []
     """Scene class for rendering responses."""
+
+    def __init__(self, title: str, description: str, steps: list[str], considerations: list[str], data: list[dict[str, Any]] | None = None, **kwargs):
+        super().__init__(**kwargs)
+        self.title = title
+        self.description = description
+        self.steps = steps
+        self.considerations = considerations
+        self.data = data
+        self.successful_data = []
+
+    def construct(self) -> None:
+        if self.data is not None:
+            title = self.create_title(self.title)
+            description = self.create_description(self.description)
+            self.arrange_objects([title, description], layout="vertical", buff=0.5)
+            self.play(TitleAnimation(title))
+            self.play(manim.AddTextLetterByLetter(description[0], run_time=2))
+            self.wait(1)
+            self.fade_out_scene()
+            for i, data in enumerate(self.data, start=1):
+                self.show_step(data["step"], i)
+                if data["name"] == "custom_template":
+                    self.custom_template(data["step"], data["args"]["code"])
+                elif data["name"] == "plot_single_variable_and_output_real_continuous_function":
+                    function = data["args"]["function"]
+                    x_min = data["args"]["x_min"]
+                    x_max = data["args"]["x_max"]
+                    x_step = data["args"]["x_step"]
+                    y_min = data["args"]["y_min"]
+                    y_max = data["args"]["y_max"]
+                    y_step = data["args"]["y_step"]
+                    x_label = data["args"]["x_label"]
+                    y_label = data["args"]["y_label"]
+                    discontinuities = data["args"]["discontinuities"]
+                    function_color = data["args"]["function_color"]
+                    x_length = data["args"]["x_length"]
+                    y_length = data["args"]["y_length"]
+                    step = data["step"]
+                    self.plot_single_variable_and_output_real_continuous_function(
+                        step=step,
+                        function=function,
+                        x_min=x_min,
+                        x_max=x_max,
+                        x_step=x_step,
+                        y_min=y_min,
+                        y_max=y_max,
+                        y_step=y_step,
+                        x_label=x_label,
+                        y_label=y_label,
+                        discontinuities=discontinuities,
+                        function_color=function_color,
+                        x_length=x_length,
+                        y_length=y_length,
+                    )
+                elif data["name"] == "plot_implicit_curve_2d":
+                    function = data["args"]["function"]
+                    x_min = data["args"]["x_min"]
+                    x_max = data["args"]["x_max"]
+                    x_step = data["args"]["x_step"]
+                    y_min = data["args"]["y_min"]
+                    y_max = data["args"]["y_max"]
+                    y_step = data["args"]["y_step"]
+                    x_label = data["args"]["x_label"]
+                    y_label = data["args"]["y_label"]
+                    function_color = data["args"]["function_color"]
+                    x_length = data["args"]["x_length"]
+                    y_length = data["args"]["y_length"]
+                    step = data["step"]
+                    self.plot_implicit_curve_2d(
+                        step=step,
+                        function=function,
+                        x_min=x_min,
+                        x_max=x_max,
+                        x_step=x_step,
+                        y_min=y_min,
+                        y_max=y_max,
+                        y_step=y_step,
+                        x_label=x_label,
+                        y_label=y_label,
+                        function_color=function_color,
+                        x_length=x_length,
+                        y_length=y_length,
+                    )
+                else:
+                    print(f"Unknown data name: {data['name']}")
+                self.fade_out_scene()
+            return
+
+        for i, step in enumerate(self.steps, start=1):
+            self.make_step(step, i)
+    
+    def make_step(self, step: str, index: int) -> None:
+        self.select_template(step, index)
+        self.fade_out_scene()
+
+    def select_template(self, step: str, index: int) -> None:
+        considerations = "\n".join(self.considerations) if len(self.considerations) > 0 else ""
+        all_steps = "\n".join([f"{i}. {s}" for i, s in enumerate(self.steps, start=1)])
+        ResponseScene.select_template_history.append(
+            {
+                "role": "user",
+                "parts": [
+                    {
+                        "text": f"""
+Here are all the steps:
+```
+{all_steps}
+```
+
+And the current step is:
+```
+{index}. {step}
+```
+
+Choose a template to use for the current step. The templates are your tools.
+
+You're allowed to choose a template for doing multiple steps at once, but you must do nothing when some next step is related to the previous one and you did that step with the previous template, don't do the same again.
+""" + "" if len(self.considerations) == 0 else f"""
+
+And the considerations are:
+```
+{considerations}
+```
+"""
+                    }
+                ]
+            }
+        )
+        there_was_function_call: bool = False
+        while not there_was_function_call:
+            select_template_response = requests.post(
+                "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+                params={
+                    "key": os.getenv("GOOGLE_API_KEY"),
+                },
+                headers={"Content-Type": "application/json"},
+                json={
+                    "system_instruction": {
+                        "parts": [
+                            {
+                                "text": MANIM_BUILDER_INSTRUCTIONS,
+                            },
+                        ]
+                    },
+                    "contents": ResponseScene.select_template_history,
+                    "tools": [
+                        {
+                            "functionDeclarations": [
+                                {
+                                    "name": "custom_template",
+                                    "description": "Custom template if the situation doesn't match any of the other templates.",
+                                    "parameters": {
+                                        "type": "OBJECT",
+                                        "properties": {
+                                            "code": {
+                                                "type": "STRING",
+                                                "description": "Partial Python code to run.",
+                                            }
+                                        },
+                                        "required": ["code"],
+                                    },
+                                },
+                                {
+                                    "name": "plot_single_variable_and_output_real_continuous_function",
+                                    "description": "Single variable and output real continuous function.",
+                                    "parameters": {
+                                        "type": "OBJECT",
+                                        "properties": {
+                                            "function": {
+                                                "type": "STRING",
+                                                "description": "Function to plot as a Python string, depends on `x` variable, which is already in the scope. You have access to `math` module, so you can use it directly (e.g. `math.sin(x)` or `math.sqrt(x)`).",
+                                            },
+                                            "x_min": {
+                                                "type": "NUMBER",
+                                                "description": "Minimum value of x.",
+                                            },
+                                            "x_max": {
+                                                "type": "NUMBER",
+                                                "description": "Maximum value of x.",
+                                            },
+                                            "x_step": {
+                                                "type": "NUMBER",
+                                                "description": "Tick step of x. It's NOT the step of function plotting. So it should be a reasonable number to have from 5 to 10 x ticks in the plot.",
+                                            },
+                                            "y_min": {
+                                                "type": "NUMBER",
+                                                "description": "Minimum value of y.",
+                                            },
+                                            "y_max": {
+                                                "type": "NUMBER",
+                                                "description": "Maximum value of y.",
+                                            },
+                                            "y_step": {
+                                                "type": "NUMBER",
+                                                "description": "Tick step of y. It's NOT the step of function plotting. So it should be a reasonable number to have from 5 to 10 y ticks in the plot.",
+                                            },
+                                            "x_label": {
+                                                "type": "STRING",
+                                                "description": "Label for x axis in LaTeX math mode.",
+                                            },
+                                            "y_label": {
+                                                "type": "STRING",
+                                                "description": "Label for y axis in LaTeX math mode.",
+                                            },
+                                            "discontinuities": {
+                                                "type": "ARRAY",
+                                                "items": {
+                                                    "type": "NUMBER",
+                                                    "description": "Discontinuity of the function.",
+                                                },
+                                                "description": "Discontinuities of the function.",
+                                            },
+                                            "function_color": {
+                                                "type": "STRING",
+                                                "description": "Color of the function. Must be a built-in Manim color. (e.g. WHITE, RED, BLUE, etc.). If user specifies a color, put it as a valid hex color between quotes (e.g. '#FF0000'), without escaping them.",
+                                            },
+                                            "x_length": {
+                                                "type": "NUMBER",
+                                                "description": "Length of x axis.",
+                                            },
+                                            "y_length": {
+                                                "type": "NUMBER",
+                                                "description": "Length of y axis.",
+                                            },
+                                        },
+                                        "required": ["function", "x_min", "x_max", "x_step", "y_min", "y_max", "y_step", "x_label", "y_label", "discontinuities", "function_color", "x_length", "y_length"],
+                                    },
+                                },
+                                {
+                                    "name": "plot_implicit_curve_2d",
+                                    "description": "Implicit curve 2D.",
+                                    "parameters": {
+                                        "type": "OBJECT",
+                                        "properties": {
+                                            "function": {
+                                                "type": "STRING",
+                                                "description": "Function to plot as a Python string, depends on `x` variable and `y` variable, which are already in the scope. You have access to `math` module, so you can use it directly (e.g. `math.sin(x + y)` or `math.sqrt(x^2 - y^2)`). The implicit function is defined as `f(x, y) = 0`, so you need to define it as such. Here goes f(x, y).",
+                                            },
+                                            "x_min": {
+                                                "type": "NUMBER",
+                                                "description": "Minimum value of x.",
+                                            },
+                                            "x_max": {
+                                                "type": "NUMBER",
+                                                "description": "Maximum value of x.",
+                                            },
+                                            "x_step": {
+                                                "type": "NUMBER",
+                                                "description": "Tick step of x. It's NOT the step of function plotting. So it should be a reasonable number to have from 5 to 10 x ticks in the plot.",
+                                            },
+                                            "y_min": {
+                                                "type": "NUMBER",
+                                                "description": "Minimum value of y.",
+                                            },
+                                            "y_max": {
+                                                "type": "NUMBER",
+                                                "description": "Maximum value of y.",
+                                            },
+                                            "y_step": {
+                                                "type": "NUMBER",
+                                                "description": "Tick step of y. It's NOT the step of function plotting. So it should be a reasonable number to have from 5 to 10 y ticks in the plot.",
+                                            },
+                                            "x_label": {
+                                                "type": "STRING",
+                                                "description": "Label for x axis in LaTeX math mode.",
+                                            },
+                                            "y_label": {
+                                                "type": "STRING",
+                                                "description": "Label for y axis in LaTeX math mode.",
+                                            },
+                                            "function_color": {
+                                                "type": "STRING",
+                                                "description": "Color of the function. Must be a built-in Manim color. (e.g. WHITE, RED, BLUE, etc.). If user specifies a color, put it as a valid hex color between quotes (e.g. '#FF0000'), without escaping them.",
+                                            },
+                                            "x_length": {
+                                                "type": "NUMBER",
+                                                "description": "Length of x axis.",
+                                            },
+                                            "y_length": {
+                                                "type": "NUMBER",
+                                                "description": "Length of y axis.",
+                                            },
+                                        },
+                                        "required": ["function", "x_min", "x_max", "x_step", "y_min", "y_max", "y_step", "x_label", "y_label", "function_color", "x_length", "y_length"],
+                                    },
+                                },
+                                {
+                                    "name": "do_nothing",
+                                    "description": "Do nothing. Meant to be used when already did the step with the previous template.",
+                                    "parameters": {
+                                        "type": "OBJECT",
+                                        "properties": {
+                                            "reason": {
+                                                "type": "STRING",
+                                                "description": "Reason why you did nothing.",
+                                            },
+                                        },
+                                        "required": ["reason"],
+                                    },
+                                }
+                            ]
+                        }
+                    ],
+                }
+            )
+            select_template_results = select_template_response.json()
+            print(select_template_results)
+            select_template_response.raise_for_status()
+            content = select_template_results["candidates"][0]["content"]
+            parts = content["parts"]
+            ResponseScene.select_template_history.append(content)
+            for part in parts:
+                if "functionCall" in part:
+                    there_was_function_call = True
+                    name = part["functionCall"]["name"]
+                    args = part["functionCall"]["args"]
+                    if name == "custom_template":
+                        self.custom_template(step, args["code"])
+                    elif name == "plot_single_variable_and_output_real_continuous_function":
+                        function = args["function"]
+                        x_min = args["x_min"]
+                        x_max = args["x_max"]
+                        y_min = args["y_min"]
+                        y_max = args["y_max"]
+                        x_label = args["x_label"]
+                        y_label = args["y_label"]
+                        discontinuities = args["discontinuities"]
+                        function_color = args["function_color"]
+                        x_step = args["x_step"]
+                        y_step = args["y_step"]
+                        x_length = args["x_length"]
+                        y_length = args["y_length"]
+                        self.plot_single_variable_and_output_real_continuous_function(
+                            function=function,
+                            x_min=x_min,
+                            x_max=x_max,
+                            x_step=x_step,
+                            y_min=y_min,
+                            y_max=y_max,
+                            y_step=y_step,
+                            x_label=x_label,
+                            y_label=y_label,
+                            discontinuities=discontinuities,
+                            function_color=function_color,
+                            step=step,
+                            x_length=x_length,
+                            y_length=y_length,
+                        )
+                    elif name == "plot_implicit_curve_2d":
+                        function = args["function"]
+                        x_min = args["x_min"]
+                        x_max = args["x_max"]
+                        y_min = args["y_min"]
+                        y_max = args["y_max"]
+                        x_label = args["x_label"]
+                        y_label = args["y_label"]
+                        function_color = args["function_color"]
+                        x_step = args["x_step"]
+                        y_step = args["y_step"]
+                        x_length = args["x_length"]
+                        y_length = args["y_length"]
+                        self.plot_implicit_curve_2d(
+                            function=function,
+                            x_min=x_min,
+                            x_max=x_max,
+                            x_step=x_step,
+                            y_min=y_min,
+                            y_max=y_max,
+                            y_step=y_step,
+                            x_label=x_label,
+                            y_label=y_label,
+                            function_color=function_color,
+                            step=step,
+                            x_length=x_length,
+                            y_length=y_length,
+                        )
+                    elif name == "do_nothing":
+                        reason = args["reason"]
+                        print(f"Do nothing's reason: {reason}")
+                    else:
+                        print(f"Unknown function call: {name}")
+                if "text" in part:
+                    text = part["text"]
+                    print(f"Text: {text}")
+            if not there_was_function_call:
+                ResponseScene.select_template_history.append(
+                    {
+                        "role": "user",
+                        "parts": [
+                            {
+                                "text": """
+Do it. Execute the tool.
+"""
+                            }
+                        ]
+                    }
+                )
+    
+    def custom_template(self, step: str, code: str) -> None:
+        """Execute the custom template code."""
+        try:
+            scope = manim.__dict__.copy()
+            scope["self"] = self
+            scope["TitleAnimation"] = TitleAnimation
+            scope["FunctionPlot"] = FunctionPlot
+            scope["math"] = math
+            exec(code, scope)
+            if self.data is None:
+                ResponseScene.select_template_history.append(
+                    {
+                        "role": "function",
+                        "parts": [
+                            {
+                                "functionResponse": {
+                                    "name": "custom_template",
+                                    "response": {
+                                        "name": "custom_template",
+                                        "content": "The code was executed successfully.",
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                )
+                self.successful_data.append(
+                    {
+                        "name": "custom_template",
+                        "args": {
+                            "code": code,
+                        },
+                        "step": step,
+                    }
+                )
+            return
+        except Exception as e:
+            error_message = f"{type(e).__name__}: {e}"
+            print(f"Error message: {error_message}")
+            error: bool = True
+            while error:
+                success = self.debug_custom_code(step, code, error_message)
+                if success:
+                    error = False
+    
+    def plot_single_variable_and_output_real_continuous_function(
+        self,
+        step: str,
+        function: str,
+        x_min: float,
+        x_max: float,
+        x_step: float,
+        y_min: float,
+        y_max: float,
+        y_step: float,
+        x_label: str,
+        y_label: str,
+        discontinuities: list[float],
+        function_color: str,
+        x_length: float,
+        y_length: float,
+    ) -> None:
+        def include_in_scope(scope: dict[str, Any], name: str, value: Any) -> dict[str, Any]:
+            scope[name] = value
+            return scope
+
+        ax = manim.Axes(
+            x_range=(x_min, x_max, x_step),
+            y_range=(y_min, y_max, y_step),
+            x_length=8 * x_length / y_length,
+            y_length=8,
+        )
+
+        def f(x: float) -> float:
+            point = ax.c2p(x, eval(function, include_in_scope(math.__dict__.copy(), "x", x)))
+            return (point[0], point[1])
+        
+        color = eval(function_color, manim.__dict__.copy())
+        ax.add_coordinates()
+        axis_labels = ax.get_axis_labels(x_label, y_label)
+        ax.add(axis_labels)
+        plot = FunctionPlot(
+            f,
+            discontinuities=discontinuities,
+            t_domain=(x_min, x_max),
+            x_range=(ax.c2p(x_min, y_min)[0], ax.c2p(x_max, y_max)[0], 0.01),
+            y_range=(ax.c2p(x_min, y_min)[1], ax.c2p(x_max, y_max)[1], 0.01),
+        ).set_color(color)
+        self.ensure_in_frame(manim.VGroup(ax, plot), padding=1.5)
+        self.play(manim.Write(ax))
+        self.play(manim.Create(plot))
+        self.wait(2)
+        if self.data is None:
+            self.successful_data.append(
+                {
+                    "name": "plot_single_variable_and_output_real_continuous_function",
+                    "args": {
+                        "function": function,
+                        "x_min": x_min,
+                        "x_max": x_max,
+                        "x_step": x_step,
+                        "y_min": y_min,
+                        "y_max": y_max,
+                        "y_step": y_step,
+                        "x_label": x_label,
+                        "y_label": y_label,
+                        "discontinuities": discontinuities,
+                        "function_color": function_color,
+                        "x_length": x_length,
+                        "y_length": y_length,
+                    },
+                    "step": step,
+                }
+            )
+            ResponseScene.select_template_history.append(
+                {
+                    "role": "function",
+                    "parts": [
+                        {
+                            "functionResponse": {
+                                "name": "plot_single_variable_and_output_real_continuous_function",
+                                "response": {
+                                    "name": "plot_single_variable_and_output_real_continuous_function",
+                                    "content": f"""The function was plotted successfully.
+
+This is equivalent to the following custom template:
+```python
+ax = Axes(
+    x_range=({x_min}, {x_max}, {x_step}),
+    y_range=({y_min}, {y_max}, {y_step}),
+    x_length=8 * {x_length} / {y_length},
+    y_length=8,
+)
+
+def f(x: float) -> float:
+    point = ax.c2p(x, {function})
+    return (point[0], point[1])
+
+    
+color = {function_color}
+ax.add_coordinates()
+axis_labels = ax.get_axis_labels({repr(x_label)}, {repr(y_label)})
+ax.add(axis_labels)
+plot = FunctionPlot(
+    f,
+    discontinuities={repr(discontinuities)},
+    t_domain=({x_min}, {x_max}),
+    x_range=(ax.c2p({x_min}, {y_min})[0], ax.c2p({x_max}, {y_max})[0], 0.01),
+    y_range=(ax.c2p({x_min}, {y_min})[1], ax.c2p({x_max}, {y_max})[1], 0.01),
+).set_color(color)
+self.ensure_in_frame(VGroup(ax, plot), padding=1.5)
+self.play(Write(ax))
+self.play(Create(plot))
+self.wait(2)
+```
+""",
+                                }
+                            }
+                        }
+                    ]
+                }
+            )
+
+    def plot_implicit_curve_2d(
+        self,
+        step: str,
+        function: str,
+        x_min: float,
+        x_max: float,
+        x_step: float,
+        y_min: float,
+        y_max: float,
+        y_step: float,
+        x_label: str,
+        y_label: str,
+        function_color: str,
+        x_length: float,
+        y_length: float,
+    ) -> None:
+        def include_in_scope(scope: dict[str, Any], data_to_add: dict[str, Any]) -> dict[str, Any]:
+            scope.update(data_to_add)
+            return scope
+
+        ax = manim.Axes(
+            x_range=(x_min, x_max, x_step),
+            y_range=(y_min, y_max, y_step),
+            x_length=8 * x_length / y_length,
+            y_length=8,
+        )
+
+        def f(x, y):
+            return eval(function, include_in_scope(math.__dict__.copy(), {"x": x, "y": y}))
+
+        color = eval(function_color, manim.__dict__.copy())
+        ax.add_coordinates()
+        axis_labels = ax.get_axis_labels(x_label, y_label)
+        ax.add(axis_labels)
+        plot = ax.plot_implicit_curve(
+            f,
+        ).set_color(color)
+        self.ensure_in_frame(manim.VGroup(ax, plot), padding=1.5)
+        self.play(manim.Write(ax))
+        self.play(manim.Create(plot))
+        self.wait(2)
+        if self.data is None:
+            self.successful_data.append(
+                {
+                    "name": "plot_implicit_curve_2d",
+                    "args": {
+                        "function": function,
+                        "x_min": x_min,
+                        "x_max": x_max,
+                        "x_step": x_step,
+                        "y_min": y_min,
+                        "y_max": y_max,
+                        "y_step": y_step,
+                        "x_label": x_label,
+                        "y_label": y_label,
+                        "function_color": function_color,
+                        "x_length": x_length,
+                        "y_length": y_length,
+                    },
+                    "step": step,
+                }
+            )
+            ResponseScene.select_template_history.append(
+                {
+                    "role": "function",
+                    "parts": [
+                        {
+                            "functionResponse": {
+                                "name": "plot_implicit_curve_2d",
+                                "response": {
+                                    "name": "plot_implicit_curve_2d",
+                                    "content": f"""
+The implicit curve was plotted successfully.
+
+This is equivalent to the following custom template:
+
+```python
+ax = Axes(
+    x_range=({x_min}, {x_max}, {x_step}),
+    y_range=({y_min}, {y_max}, {y_step}),
+    x_length=8 * {x_length} / {y_length},
+    y_length=8,
+)
+
+def f(x, y):
+    return {function}
+
+color = {function_color}
+ax.add_coordinates()
+axis_labels = ax.get_axis_labels({repr(x_label)}, {repr(y_label)})
+ax.add(axis_labels)
+
+plot = ax.plot_implicit_curve(
+    f,
+).set_color(color)
+self.ensure_in_frame(VGroup(ax, plot), padding=1.5)
+self.play(Write(ax))
+self.play(Create(plot))
+self.wait(2)
+```
+"""
+                                }
+                            }
+                        }
+                    ]
+                }
+            )
+
+    def debug_custom_code(self, step: str, code: str, error: str) -> bool:
+        self.clear()
+        ResponseScene.debugger_history.append(
+            {
+                "role": "user",
+                "parts": [
+                    {
+                        "text": f"""
+Please debug the following code. The code is:
+```python
+{code}
+```
+And the error message is:
+```
+{error}
+```
+
+Remember the rules:
+- Don't make the entire code, we're in the `construct` method, so just make the code that goes in there.
+- Scene's variable is `self`, so use it directly.
+- Don't import Manim, it's already imported.
+"""
+                    }
+                ]
+            }
+        )
+        response = requests.post(
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+            params={
+                "key": os.getenv("GOOGLE_API_KEY"),
+            },
+            headers={"Content-Type": "application/json"},
+            json={
+                "system_instruction": {
+                    "parts": [
+                        {
+                            "text": CUSTOM_CODE_DEBUGGER_INSTRUCTIONS,
+                        },
+                    ]
+                },
+                "contents": ResponseScene.debugger_history,
+                "generationConfig": {
+                    "response_mime_type": "application/json",
+                    "response_schema": {
+                        "type": "OBJECT",
+                        "properties": {
+                            "code": {
+                                "type": "STRING",
+                                "description": "Fixed code.",
+                            },
+                            "explanation": {
+                                "type": "STRING",
+                                "description": "Explanation of the error and the fix, with the changes you made.",
+                            },
+                        },
+                        "required": ["code", "explanation"],
+                    },
+                }
+            }
+        )
+        response_results = response.json()
+        print(response_results)
+        response.raise_for_status()
+        response = json.loads(response_results["candidates"][0]["content"]["parts"][0]["text"])
+        fixed_code = response["code"]
+        print(f"Fixed code:\n{fixed_code}")
+        explanation = response["explanation"]
+        print(f"Explanation:\n{explanation}")
+        ResponseScene.debugger_history.append(response_results["candidates"][0]["content"])
+        try:
+            scope = manim.__dict__.copy()
+            scope["self"] = self
+            scope["TitleAnimation"] = TitleAnimation
+            scope["FunctionPlot"] = FunctionPlot
+            scope["math"] = math
+            exec(fixed_code, scope)
+            ResponseScene.debugger_history.append(
+                {
+                    "role": "user",
+                    "parts": [
+                        {
+                            "text": f"""
+The code has been fixed, the successful code is:
+
+```python
+{fixed_code}
+```
+"""
+                        }
+                    ]
+                }
+            )
+            if self.data is None:
+                ResponseScene.select_template_history.append(
+                    {
+                        "role": "function",
+                        "parts": [
+                            {
+                                "functionResponse": {
+                                    "name": "custom_template",
+                                    "response": {
+                                        "name": "custom_template",
+                                        "content": f"""
+    The code had errors, but has been fixed, the successful code is:
+
+    ```python
+    {fixed_code}
+    ```
+    """
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                )
+                self.successful_data.append(
+                    {
+                        "name": "custom_template",
+                        "args": {
+                            "code": fixed_code,
+                        },
+                        "step": step,
+                    }
+                )
+            return True
+        except Exception as e:
+            print(f"Error executing code: {e}")
+            error_message = f"{type(e).__name__}: {e}"
+            print(f"Error message: {error_message}")
+            ResponseScene.debugger_history.append(
+                {
+                    "role": "user",
+                    "parts": [
+                        {
+                            "text": f"""
+Another error occurred while trying to execute. The new error message is:
+```
+{error_message}
+```
+
+Remember the original code was:
+```python
+{code}
+```
+
+And the code I executed was the same as you provided, which is:
+```python
+{fixed_code}
+```
+
+Remember the rules:
+- Don't make the entire code, we're in the `construct` method, so just make the code that goes in there.
+- Scene's variable is `self`, so use it directly.
+- Don't import Manim, it's already imported.
+"""
+                        }
+                    ]
+                }
+            )
+        return False
+ 
+    def show_step(self, step: str, index: int) -> None:
+        step_title = text_to_latex(f"**Paso {index}**", 72)
+        step_text = text_to_latex(step)
+        self.arrange_objects([step_title, step_text], layout="vertical", buff=0.5)
+        self.play(TitleAnimation(step_title))
+        self.play(manim.AddTextLetterByLetter(step_text[0], run_time=2))
+        self.wait(1)
+        self.play(manim.FadeOut(step_text), step_title.animate.to_corner(manim.UL))
 
     def create_title(self, text: str) -> manim.Tex:
         """Create a title for the scene."""
-        title = manim.Tex(r"\textbf{" + text + "}", font_size=72, color=manim.WHITE)
-        self.ensure_in_frame(title)
+        title = text_to_latex(f"**{text}**", font_size=72)
         return title
     
+    def create_description(self, text: str) -> manim.Tex:
+        """Create a description for the scene."""
+        description = text_to_latex(text)
+        return description
+
     def fade_out_scene(self) -> None:
         """Fade out all objects in the scene."""
+        if len(self.mobjects) == 0:
+            return
         self.play(manim.FadeOut(*self.mobjects))
         self.wait(1)
     
@@ -233,7 +1013,7 @@ class ResponseScene(manim.Scene):
         if layout == "horizontal":
             gr.arrange(manim.RIGHT, buff=buff)
         elif layout == "vertical":
-            gr.arrange(manim.UP, buff=buff)
+            gr.arrange(manim.DOWN, buff=buff)
         elif layout == "grid":
             # Calculate grid dimensions
             n = len(objects)
@@ -262,137 +1042,33 @@ class ResponseScene(manim.Scene):
         return self.ensure_in_frame(gr)
 
 
-coder_history: list[dict[str, Any]] = []
+latex_history: list[dict[str, Any]] = []
 
 
-async def render_manim(message: discord.Message, scene_class_name: str, description: str, steps: list[str] = [], considerations: list[str] = []) -> tuple[bool, str | None, str | None]:
-    """Render the Manim scene."""
-    io = StringIO()
-    json.dump(
-        {
-            "scene_class_name": scene_class_name,
-            "description": description,
-            "steps": steps,
-            "considerations": considerations,
-        },
-        io,
-    )
-    io.seek(0)
-    coder_history.append(
+def text_to_latex(text: str, font_size: int = 48) -> manim.Tex:
+    """Convert text to LaTeX."""
+    latex_history.append(
         {
             "role": "user",
             "parts": [
                 {
-                    "text": io.read(),
-                },
+                    "text": f"""
+Please convert the following text to LaTeX:
+
+```
+{text}
+```
+
+Don't make the entire document, just what's between the `\\begin{{document}}` and `\\end{{document}}` commands.
+Also remember to NEVER put unicode characters in text mode representing math, like `²` or `³`. Always use LaTeX math mode for that. For example, if you have `x² + y² = z²`, you should write it as `$x^2 + y^2 = z^2$`.
+"""
+                }
             ]
         }
     )
-    coder_response = requests.post(
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
-        params={
-            "key": os.getenv("GOOGLE_API_KEY"),
-        },
-        headers={"Content-Type": "application/json"},
-        json={
-            "system_instruction": {
-                "parts": [
-                    {
-                        "text": CODER_INSTRUCTIONS,
-                    },
-                ]
-            },
-            "contents": coder_history,
-            "generationConfig": {
-                "response_mime_type": "application/json",
-                "response_schema": {
-                    "type": "OBJECT",
-                    "properties": {
-                        "code": {
-                            "type": "STRING",
-                            "description": "Code for the Manim scene.",
-                        }
-                    },
-                    "required": ["code"],
-                },
-            }
-        }
-    )
-    coder_results = coder_response.json()
-    coder_response.raise_for_status()
-    coder_response = json.loads(coder_results["candidates"][0]["content"]["parts"][0]["text"])
-    content = coder_results["candidates"][0]["content"]
-    coder_history.append(content)
-    code = coder_response["code"]
-    try:
-        ctx = manim.__dict__
-        ctx["ResponseScene"] = ResponseScene
-        exec(full_code.format(code=code, scene_class_name=scene_class_name), ctx)
-    except Exception as e:
-        print(full_code.format(code=code, scene_class_name=scene_class_name))
-        print(f"Error rendering Manim scene: {e}")
-        return await fix_manim_errors(message, code, scene_class_name, e)
-    else:
-        video_path: pathlib.Path = pathlib.Path("media/videos/1080p60/")
-        video_path = video_path / f"{scene_class_name}.mp4"
-        image_path: pathlib.Path = pathlib.Path("media/images/")
-        image_path = image_path / f"{scene_class_name}_ManimCE_v0.19.0.png"
-        if not video_path.exists() and not image_path.exists():
-            return await fix_manim_errors(message, code, scene_class_name, f"Output file not found with class name {scene_class_name}.")
-        with open(video_path if video_path.exists() else image_path, "rb") as f:
-            if isinstance(message.channel, discord.DMChannel):
-                await message.author.send(file=discord.File(f, "manim_scene.mp4"), reference=message)
-            else:
-                await message.channel.send(file=discord.File(f, "manim_scene.mp4"), reference=message)
-        with open(video_path if video_path.exists() else image_path, "rb") as f:
-            b64_video_or_image = base64.b64encode(f.read()).decode("utf-8")
-        coder_history.append(
-            {
-                "role": "user",
-                "parts": [{
-                    "text": "Your code was successfully rendered.",
-                }]
-            }
-        )
-        mime_type = "video/mp4" if video_path.exists() else "image/png"
-        return True, b64_video_or_image, mime_type
-
-
-debugger_history: list[dict[str, Any]] = []
-
-
-async def fix_manim_errors(message: discord.Message, code: str, scene_class_name: str, error: Exception) -> tuple[bool, str | None, str | None]:
-    """Fix Manim errors."""
-    error_message = f"{type(error).__name__}: {error}"
-    parts = [
-        {
-            "text": f"""
-    Please fix the errors in this Manim code.
-
-
-    CODE WITH ERRORS:
-    ```python
-    {code}
-    ```
-
-    ERROR MESSAGE:
-    ```
-    {error_message}
-    ```
-
-    Please provide a complete fixed version of the code, along with an explanation of what went wrong and how you fixed it, and also keep the class name of the scene as {scene_class_name}.
-    Also keep the same inheritance of the scene class, and the same methods and attributes as the original code.
-    """
-        },
-    ]
-    debugger_history.append(
-        {
-            "parts": parts,
-            "role": "user",
-        }
-    )
-    for _ in range(5):
-        debugger_response = requests.post(
+    error = True
+    while error:
+        latex_response = requests.post(
             "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
             params={
                 "key": os.getenv("GOOGLE_API_KEY"),
@@ -402,105 +1078,102 @@ async def fix_manim_errors(message: discord.Message, code: str, scene_class_name
                 "system_instruction": {
                     "parts": [
                         {
-                            "text": DEBUGGER_INSTRUCTIONS,
+                            "text": TEXT_TO_LATEX_INSTRUCTIONS,
                         },
                     ]
                 },
-                "contents": debugger_history,
+                "contents": latex_history,
                 "generationConfig": {
                     "response_mime_type": "application/json",
                     "response_schema": {
                         "type": "OBJECT",
                         "properties": {
-                            "code": {
+                            "latex_code": {
                                 "type": "STRING",
-                                "description": "Fixed code for the Manim scene.",
-                            },
-                            "explanation": {
-                                "type": "STRING",
-                                "description": "Explanation of the error and the fix.",
-                            },
-                            "changes": {
-                                "type": "ARRAY",
-                                "items": {
-                                    "type": "STRING",
-                                    "description": "Changes made to the code.",
-                                },
-                                "description": "List of changes made to the code.",
-                            },
+                                "description": "LaTeX code.",
+                            }
                         },
-                        "required": ["code", "explanation", "changes"],
+                        "required": ["latex_code"],
                     },
                 }
             }
         )
-        debugger_results = debugger_response.json()
-        debugger_response.raise_for_status()
-        debugger_response = json.loads(debugger_results["candidates"][0]["content"]["parts"][0]["text"])
-        code = debugger_response["code"]
-        explanation = debugger_response["explanation"]
-        changes = '\n'.join(debugger_response["changes"])
-        print(f"Fixed code:\n{code}")
-        print(f"Explanation:\n{explanation}")
-        print(f"Changes:\n{changes}")
-        debugger_history.append(debugger_results["candidates"][0]["content"])
+        latex_results = latex_response.json()
+        print(latex_results)
+        latex_response.raise_for_status()
+        latex_response = json.loads(latex_results["candidates"][0]["content"]["parts"][0]["text"])
+        latex_code = latex_response["latex_code"]
+        print(f"Latex code:\n{latex_code}")
+        latex_history.append(latex_results["candidates"][0]["content"])
         try:
-            ctx = manim.__dict__
-            ctx["ResponseScene"] = ResponseScene
-            exec(full_code.format(code=code, scene_class_name=scene_class_name), ctx)
+            tex = manim.Tex(latex_code, font_size=font_size, color=manim.WHITE)
+            error = False
         except Exception as e:
-            print(f"Error rendering Manim scene: {e}")
+            print(f"Error creating LaTeX: {e}")
             error_message = f"{type(e).__name__}: {e}"
             print(f"Error message: {error_message}")
-            debugger_history.append(
+            latex_history.append(
                 {
                     "role": "user",
                     "parts": [
                         {
-                    "text": f"""
-Another error occurred while trying to render the fixed code. The new error message is:
+                            "text": f"""
+An error occurred while trying to create the LaTeX code. The error message is:
 
 ```
 {error_message}
 ```
-Please fix the errors in this Manim code.
-""",
+
+Fix it, but keep what's meant to be LaTeX code. Don't change the text, just fix the LaTeX code.
+And don't make the entire document, just what's between the `\\begin{{document}}` and `\\end{{document}}` commands.
+Also remember to NEVER put unicode characters in text mode representing math, like `²` or `³`. Always use LaTeX math mode for that. For example, if you have `x² + y² = z²`, you should write it as `$x^2 + y^2 = z^2$`.
+"""
                         }
                     ]
                 }
             )
             continue
-        else:
-            video_path: pathlib.Path = pathlib.Path("media/videos/1080p60/")
-            video_path = video_path / f"{scene_class_name}.mp4"
-            image_path: pathlib.Path = pathlib.Path("media/images/")
-            image_path = image_path / f"{scene_class_name}_ManimCE_v0.19.0.png"
-            if not video_path.exists() and not image_path.exists():
-                error_message = f"Output file not found with class name {scene_class_name}."
-                continue
-            with open(video_path if video_path.exists() else image_path, "rb") as f:
-                if isinstance(message.channel, discord.DMChannel):
-                    await message.author.send(file=discord.File(f, "manim_scene.mp4"), reference=message)
-                else:
-                    await message.channel.send(file=discord.File(f, "manim_scene.mp4"), reference=message)
-            coder_history.append(
+    latex_history.append(
+        {
+            "role": "user",
+            "parts": [
                 {
-                    "role": "user",
-                    "parts": [{
-                        "text": f"""The code had errors, the fixed code is:
+                    "text": f"""
+The LaTeX code has been rendered, the successful code is:
 
-```python
-{code}
+```latex
+{latex_code}
 ```
 """
-                    }]
                 }
-            )
-            with open(video_path if video_path.exists() else image_path, "rb") as f:
-                b64_video_or_image = base64.b64encode(f.read()).decode("utf-8")
-            mime_type = "video/mp4" if video_path.exists() else "image/png"
-            return True, b64_video_or_image, mime_type
-    return False, None, None
+            ]
+        }
+    )
+    return tex
+
+
+coder_history: list[dict[str, Any]] = []
+
+
+async def render_manim(message: discord.Message, title: str, description: str, steps: list[str] = [], considerations: list[str] = []) -> tuple[bool, str | None, str | None]:
+    """Render the Manim scene."""
+    scene = ResponseScene(title, description, steps, considerations)
+    scene.render()
+    scene = ResponseScene(title, description, steps, considerations, scene.successful_data)
+    scene.render()
+    media_dir = pathlib.Path("media")
+    file_path = media_dir / "videos" / "1080p60" / "ResponseScene.mp4"
+    if not file_path.exists():
+        return False
+    with open(file_path, "rb") as f:
+        video_file = discord.File(f, "ResponseScene.mp4")
+    if isinstance(message.channel, discord.DMChannel):
+        await message.author.send(file=video_file, reference=message)
+    else:
+        await message.channel.send(file=video_file, reference=message)
+    return True
+
+debugger_history: list[dict[str, Any]] = []
 
 
 def math_problem_state(problem: str) -> str:
