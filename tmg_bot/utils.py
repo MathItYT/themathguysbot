@@ -50,9 +50,10 @@ def fix_tex_bugs(text: str) -> str:
     return beautify_quotes
 
 
-async def render_tex(message: discord.Message) -> None:
+async def render_tex(message: discord.Message, contents: str) -> None:
     temp_dir: pathlib.Path = pathlib.Path("temp")
-    md = fix_tex_bugs(message.content)
+    temp_dir.mkdir(exist_ok=True)
+    md = fix_tex_bugs(contents)
     channel = message.channel
     author = message.author
     temp_tex = temp_dir / f"{message.id}.tex"

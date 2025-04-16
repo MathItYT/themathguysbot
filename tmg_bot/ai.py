@@ -191,18 +191,14 @@ class AI(commands.Cog):
                     for part in parts:
                         if "text" in part:
                             if len(part["text"]) > 0:
-                                if isinstance(after.channel, discord.DMChannel):
-                                    
+                                if isinstance(after.channel, discord.DMChannel):   
                                     for i in range(0, len(part["text"]), 2000):
                                         await after.author.send(part["text"][i:i+2000], reference=after)
                                 else:
                                     for i in range(0, len(part["text"]), 2000):
                                         await after.channel.send(part["text"][i:i+2000], reference=after)
-                                if tex_message.match(part["text"]):
-                                    if isinstance(after.channel, discord.DMChannel):
-                                        await after.author.send(render_tex(part["text"]))
-                                    else:
-                                        await after.channel.send(render_tex(part["text"]))
+                                if tex_message.search(part["text"]):
+                                    await render_tex(after, part["text"])
                         if "functionCall" in part:
                             if function_response is None:
                                 function_response = {
@@ -430,7 +426,7 @@ class AI(commands.Cog):
                                         if len(part["text"][i:i+2000].strip()) > 0:
                                             await message.channel.send(part["text"][i:i+2000], reference=message)
                                 if tex_message.search(part["text"]):
-                                    await render_tex(message)
+                                    await render_tex(message, part["text"])
                         if "functionCall" in part:
                             if function_response is None:
                                 function_response = {
