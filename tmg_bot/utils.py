@@ -60,7 +60,8 @@ async def render_tex(message: discord.Message, contents: str) -> None:
     temp_png = temp_dir / f"{message.id}.png"
     temp_tex.write_text(DEFAULT_TEX_TEMPLATE.format(md=md), encoding="utf-8")
     try:
-        subprocess.run(" ".join(["cd", "temp", "&&", "latex", "-interaction=nonstopmode", "-shell-escape", f"{message.id}.tex"]), check=True, shell=True)
+        for _ in range(2):
+            subprocess.run(" ".join(["cd", "temp", "&&", "latex", "-interaction=nonstopmode", "-shell-escape", f"{message.id}.tex"]), check=True, shell=True)
     except subprocess.CalledProcessError as e:
         print(f"Error rendering LaTeX: {e}")
         return
