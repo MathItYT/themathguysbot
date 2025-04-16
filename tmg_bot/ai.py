@@ -39,11 +39,6 @@ class AI(commands.Cog):
     @commands.Cog.listener()
     async def on_message_edit(self, before: discord.Message, after: discord.Message) -> None:
         async with ai_lock:
-            if before.author == self.bot.user:
-                is_tex: bool = tex_message.search(after.content)
-                if is_tex:
-                    await render_tex(after)
-                return
             io = StringIO()
             json.dump(
                 {
@@ -203,6 +198,11 @@ class AI(commands.Cog):
                                 else:
                                     for i in range(0, len(part["text"]), 2000):
                                         await after.channel.send(part["text"][i:i+2000], reference=after)
+                                if tex_message.match(part["text"]):
+                                    if isinstance(after.channel, discord.DMChannel):
+                                        await after.author.send(render_tex(part["text"]))
+                                    else:
+                                        await after.channel.send(render_tex(part["text"]))
                         if "functionCall" in part:
                             if function_response is None:
                                 function_response = {
@@ -268,9 +268,6 @@ class AI(commands.Cog):
     async def on_message(self, message: discord.Message) -> None:
         async with ai_lock:
             if message.author == self.bot.user:
-                is_tex: bool = tex_message.search(message.content)
-                if is_tex:
-                    await render_tex(message)
                 return
             io = StringIO()
             json.dump(
@@ -423,14 +420,17 @@ class AI(commands.Cog):
                     AI.history.append(content)
                     for part in parts:
                         if "text" in part:
-                            if isinstance(message.channel, discord.DMChannel):
-                                for i in range(0, len(part["text"]), 2000):
-                                    if len(part["text"][i:i+2000].strip()) > 0:
-                                        await message.author.send(part["text"][i:i+2000], reference=message)
-                            else:
-                                for i in range(0, len(part["text"]), 2000):
-                                    if len(part["text"][i:i+2000].strip()) > 0:
-                                        await message.channel.send(part["text"][i:i+2000], reference=message)
+                            if len(part["text"]) > 0:
+                                if isinstance(message.channel, discord.DMChannel):
+                                    for i in range(0, len(part["text"]), 2000):
+                                        if len(part["text"][i:i+2000].strip()) > 0:
+                                            await message.author.send(part["text"][i:i+2000], reference=message)
+                                else:
+                                    for i in range(0, len(part["text"]), 2000):
+                                        if len(part["text"][i:i+2000].strip()) > 0:
+                                            await message.channel.send(part["text"][i:i+2000], reference=message)
+                                if tex_message.search(part["text"]):
+                                    await render_tex(message)
                         if "functionCall" in part:
                             if function_response is None:
                                 function_response = {

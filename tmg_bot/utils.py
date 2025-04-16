@@ -54,6 +54,7 @@ async def render_tex(message: discord.Message) -> None:
     temp_dir: pathlib.Path = pathlib.Path("temp")
     md = fix_tex_bugs(message.content)
     channel = message.channel
+    author = message.author
     temp_tex = temp_dir / f"{message.id}.tex"
     temp_png = temp_dir / f"{message.id}.png"
     temp_tex.write_text(DEFAULT_TEX_TEMPLATE.format(md=md), encoding="utf-8")
@@ -68,7 +69,10 @@ async def render_tex(message: discord.Message) -> None:
         print(f"Error rendering LaTeX: {e}")
         return
     with open(temp_png, "rb") as f:
-        await channel.send(file=discord.File(f, "texput.png"), reference=message)
+        if isinstance(channel, discord.DMChannel):
+            await author.send(file=discord.File(f, "texput.png"), reference=message)
+        else:
+            await channel.send(file=discord.File(f, "texput.png"), reference=message)
 
 
 def internet_search(query: str) -> dict[str, str]:
