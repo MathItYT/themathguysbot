@@ -12,6 +12,7 @@ import math
 import numpy as np
 import sympy
 import time
+from manimpango import list_fonts
 
 from .function_plot import FunctionPlot
 from .title_animation import TitleAnimation
@@ -220,6 +221,17 @@ class ResponseScene(manim.Scene):
                         color_1=color_1,
                         color_2=color_2,
                     )
+                elif data["name"] == "pi_approximation_by_monte_carlo":
+                    n_points_in_square = data["args"]["n_points_in_square"]
+                    color_square = data["args"]["color_square"]
+                    color_circle = data["args"]["color_circle"]
+                    step = data["step"]
+                    self.pi_approximation_by_monte_carlo(
+                        step=step,
+                        n_points_in_square=n_points_in_square,
+                        color_square=color_square,
+                        color_circle=color_circle,
+                    )
                 else:
                     print(f"Unknown data name: {data['name']}")
                 self.fade_out_scene()
@@ -256,6 +268,11 @@ Methods and attributes available for `self` are:
 Camera methods and attributes available are:
 ```
 {dir(self.camera)}
+```
+
+Available fonts for `Text` object are:
+```
+{list_fonts()}
 ```
 """
                     }
@@ -312,6 +329,12 @@ Camera methods and attributes available are:
 ```
 {dir(self.camera)}
 ```
+
+And available fonts for `Text` object are:
+
+```
+{list_fonts()}
+```
 """
                     }
                 ]
@@ -320,7 +343,7 @@ Camera methods and attributes available are:
         there_was_function_call: bool = False
         while not there_was_function_call:
             select_template_response = requests.post(
-                "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+                "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent",
                 params={
                     "key": os.getenv("GOOGLE_API_KEY"),
                 },
@@ -494,6 +517,28 @@ Camera methods and attributes available are:
                                     }
                                 },
                                 {
+                                    "name": "pi_approximation_by_monte_carlo",
+                                    "description": "Animation of pi approximation by Monte Carlo method.",
+                                    "parameters": {
+                                        "type": "OBJECT",
+                                        "properties": {
+                                            "n_points_in_square": {
+                                                "type": "NUMBER",
+                                                "description": "Number of points to be generated in the square. The limit is 200 points.",
+                                            },
+                                            "color_square": {
+                                                "type": "STRING",
+                                                "description": "Color of points in the square, but not part of the circle. Must be a built-in Manim color. (e.g. WHITE, RED, BLUE, etc.). If user specifies a color, put it as a valid hex color between quotes (e.g. '#FF0000'), without escaping them. Preferably use BLUE.",
+                                            },
+                                            "color_circle": {
+                                                "type": "STRING",
+                                                "description": "Color of points inside the circle. Must be a built-in Manim color. (e.g. WHITE, RED, BLUE, etc.). If user specifies a color, put it as a valid hex color between quotes (e.g. '#FF0000'), without escaping them. Preferably use RED.",
+                                            },
+                                        },
+                                        "required": ["n_points_in_square", "color_square", "color_circle"],
+                                    }
+                                },
+                                {
                                     "name": "do_nothing",
                                     "description": "Do nothing. Meant to be used when already did the step with the previous template.",
                                     "parameters": {
@@ -589,6 +634,16 @@ Camera methods and attributes available are:
                         self.show_sphere(
                             color_1=color_1,
                             color_2=color_2,
+                            step=step,
+                        )
+                    elif name == "pi_approximation_by_monte_carlo":
+                        n_points_in_square = args["n_points_in_square"]
+                        color_square = args["color_square"]
+                        color_circle = args["color_circle"]
+                        self.pi_approximation_by_monte_carlo(
+                            n_points_in_square=n_points_in_square,
+                            color_square=color_square,
+                            color_circle=color_circle,
                             step=step,
                         )
                     elif name == "do_nothing":
@@ -695,6 +750,8 @@ Do it. Execute the tool.
         x_length: float,
         y_length: float,
     ) -> None:
+        function_color = function_color if not function_color.startswith("#") else f"'{function_color}'"
+
         def include_in_scope(scope: dict[str, Any], name: str, value: Any) -> dict[str, Any]:
             scope[name] = value
             return scope
@@ -812,6 +869,8 @@ self.wait(2)
         x_length: float,
         y_length: float,
     ) -> None:
+        function_color = function_color if not function_color.startswith("#") else f"'{function_color}'"
+
         def include_in_scope(scope: dict[str, Any], data_to_add: dict[str, Any]) -> dict[str, Any]:
             scope.update(data_to_add)
             return scope
@@ -910,6 +969,8 @@ self.wait(2)
         color_1: str,
         color_2: str,
     ) -> None:
+        color_1 = color_1 if not color_1.startswith("#") else f"'{color_1}'"
+        color_2 = color_2 if not color_2.startswith("#") else f"'{color_2}'"
         manim_color_1 = eval(color_1, manim.__dict__.copy())
         manim_color_2 = eval(color_2, manim.__dict__.copy())
         sphere = manim.Sphere(
@@ -967,6 +1028,122 @@ self.wait(2)
                 }
             )
 
+    def pi_approximation_by_monte_carlo(
+        self,
+        step: str,
+        n_points_in_square: int,
+        color_square: str,
+        color_circle: str,
+    ) -> None:
+        import random
+        color_circle = color_circle if not color_circle.startswith("#") else f"'{color_circle}'"
+        color_square = color_square if not color_square.startswith("#") else f"'{color_square}'"
+        sq = manim.Square(side_length=4).set_color(color_square)
+        circ = manim.Circle(radius=2).set_color(color_circle)
+        self.play(manim.Create(sq))
+        self.play(manim.Create(circ))
+        self.wait(2)
+
+        added_pi_value = False
+        points_in_circle = 0
+        points_out_circle = 0
+
+        manim_color_circle = eval(color_circle, manim.__dict__.copy())
+        manim_color_square = eval(color_square, manim.__dict__.copy())
+
+        for _ in range(n_points_in_square):
+            x = random.uniform(-2, 2)
+            y = random.uniform(-2, 2)
+            point = manim.Dot(x * manim.RIGHT + y * manim.UP, radius=0.05)
+            if (x ** 2 + y ** 2) <= 4:
+                color = manim_color_circle
+                point.set_color(color)
+                points_in_circle += 1
+                self.add(point)
+            else:
+                color = manim_color_square
+                point.set_color(color)
+                points_out_circle += 1
+                self.add(point)
+            pi_val = 4 * points_in_circle / (points_in_circle + points_out_circle)
+            if not added_pi_value:
+                dec = manim.DecimalNumber(pi_val, num_decimal_places=5, edge_to_fix=manim.RIGHT, font_size=72).to_corner(manim.UR)
+                self.add(dec)
+                added_pi_value = True
+            else:
+                dec.set_value(pi_val)
+            self.wait(5 / self.camera.frame_rate)
+        self.wait(2)
+        if self.data is None:
+            self.successful_data.append(
+                {
+                    "name": "pi_approximation_by_monte_carlo",
+                    "args": {
+                        "n_points_in_square": n_points_in_square,
+                        "color_square": color_square,
+                        "color_circle": color_circle,
+                    },
+                    "step": step,
+                }
+            )
+            ResponseScene.select_template_history.append(
+                {
+                    "role": "function",
+                    "parts": [
+                        {
+                            "functionResponse": {
+                                "name": "pi_approximation_by_monte_carlo",
+                                "response": {
+                                    "name": "pi_approximation_by_monte_carlo",
+                                    "content": f"""
+The pi approximation by Monte Carlo method was shown successfully.
+
+This is equivalent to the following custom template:
+
+```python
+import random
+number_of_points = {n_points_in_square}
+sq = Square(side_length=4).set_color({color_square})
+circ = Circle(radius=2).set_color({color_circle})
+self.play(Create(sq))
+self.play(Create(circ))
+self.wait(2)
+
+added_pi_value = False
+points_in_circle = 0
+points_out_circle = 0
+
+for _ in range(number_of_points):
+    x = random.uniform(-2, 2)
+    y = random.uniform(-2, 2)
+    point = Dot(x * RIGHT + y * UP, radius=0.05)
+    if (x ** 2 + y ** 2) <= 4:
+        color = {color_circle}
+        point.set_color(color)
+        points_in_circle += 1
+        self.add(point)
+    else:
+        color = {color_square}
+        point.set_color(color)
+        points_out_circle += 1
+        self.add(point)
+    pi_val = 4 * points_in_circle / (points_in_circle + points_out_circle)
+    if not added_pi_value:
+        dec = DecimalNumber(pi_val, num_decimal_places=5, edge_to_fix=RIGHT, font_size=72).to_corner(UR)
+        self.add(dec)
+        added_pi_value = True
+    else:
+        dec.set_value(pi_val)
+    self.wait(5 / self.camera.frame_rate)
+self.wait(2)
+```
+"""
+                                }
+                            }
+                        }
+                    ]
+                }
+            )
 
     def debug_custom_code(self, step: str, code: str, error: str) -> bool:
         self.clear()
@@ -999,13 +1176,18 @@ Available camera methods and attributes are:
 ```
 {dir(self.camera)}
 ```
+
+And available fonts for `Text` object are:
+```
+{list_fonts()}
+```
 """
                     }
                 ]
             }
         )
         response = requests.post(
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent",
             params={
                 "key": os.getenv("GOOGLE_API_KEY"),
             },
@@ -1184,6 +1366,11 @@ Available camera methods and attributes are:
 ```
 {dir(self.camera)}
 ```
+
+And available fonts for `Text` object are:
+```
+{list_fonts()}
+```
 """
                         }
                     ]
@@ -1321,7 +1508,7 @@ Also remember to NEVER put unicode characters in text mode representing math, li
     error = True
     while error:
         latex_response = requests.post(
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent",
             params={
                 "key": os.getenv("GOOGLE_API_KEY"),
             },
@@ -1448,7 +1635,7 @@ debugger_history: list[dict[str, Any]] = []
 def math_problem_state(problem: str) -> str:
     """Return the state of the math problem."""
     problem_state_response = requests.post(
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent",
         params={
             "key": os.getenv("GOOGLE_API_KEY"),
         },
@@ -1513,7 +1700,7 @@ def solve_math(problem_statement: str) -> dict[str, Any]:
     while there_was_function_call:
         function_response: dict[str, Any] | None = None
         problem_response = requests.post(
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent",
             params={
                 "key": os.getenv("GOOGLE_API_KEY"),
             },
@@ -1621,7 +1808,7 @@ This is the error message:
     )
     for _ in range(5):
         code_fix_response = requests.post(
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent",
             params={
                 "key": os.getenv("GOOGLE_API_KEY"),
             },

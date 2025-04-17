@@ -70,7 +70,7 @@ class AI(commands.Cog):
                 while there_was_function_call:
                     function_response: dict[str, Any] | None = None
                     response = requests.post(
-                        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+                        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent",
                         params={"key": GOOGLE_API_KEY},
                         headers={"Content-Type": "application/json"},
                         json={
@@ -296,7 +296,7 @@ class AI(commands.Cog):
                 while there_was_function_call:
                     function_response: dict[str, Any] | None = None
                     response = requests.post(
-                        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+                        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent",
                         params={"key": GOOGLE_API_KEY},
                         headers={"Content-Type": "application/json"},
                         json={
