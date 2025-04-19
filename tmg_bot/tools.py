@@ -544,13 +544,13 @@ def solve_math(
                 {
                     "type": "function",
                     "name": "sympy_calculator",
-                    "description": "Calculates math expressions using SymPy.",
+                    "description": "Calculates mathematical expressions using Python and SymPy.",
                     "parameters": {
                         "type": "object",
                         "properties": {
                             "expression": {
                                 "type": "string",
-                                "description": "Math expression to calculate.",
+                                "description": "Python expression to evaluate.",
                             },
                         },
                         "required": ["expression"],
