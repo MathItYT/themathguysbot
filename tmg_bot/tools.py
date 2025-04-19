@@ -564,6 +564,7 @@ def solve_math(
         last_math_response_id = response.id
         output = response.output
         problem_statement = []
+        text_parts = []
         for item in output:
             if not isinstance(item, dict):
                 item = item.to_dict(mode="json")
@@ -594,5 +595,6 @@ def solve_math(
                 for content_item in content:
                     if content_item["type"] == "output_text":
                         print(content_item["text"])
+                        text_parts.append(content_item["text"])
         time.sleep(1.0)  # Avoid hitting the API too fast
-    return response.output_text
+    return "\n\n".join(text_parts)
