@@ -7,14 +7,14 @@ DEFAULT_TEX_TEMPLATE: str = """
 \\usepackage{{mlmodern}}
 \\usepackage{{hyperref}}
 \\usepackage{{minted}}
-\\usepackage[smartEllipses,hashEnumerators,fencedCode]{{markdown}}
+\\usepackage[smartEllipses,hashEnumerators,fencedCode,hybrid]{{markdown}}
 \\markdownSetup{{renderers={{
   link = {{\href{{#2}}{{#1}}}}
 }}}}
 \\usemintedstyle{{nord}}
 \\begin{{document}}
 \\color{{white}}
-\\begin{{markdown}}[texMathDollars,texMathSingleBackslash,texMathDoubleBackslash]
+\\begin{{markdown}}
 {md}
 \\end{{markdown}}
 \\end{{document}}
