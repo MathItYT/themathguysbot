@@ -40,49 +40,53 @@ def bing_search(
     query: str,
 ) -> str:
     """Search the internet for information related to the user's query."""
-    agent = project_client.agents.create_agent(
-        model="gpt-4o",
-        instructions=BING_SEARCH_INSTRUCTIONS,
-        name="bing_search",
-        tools=bing.definitions,
-        headers={"x-ms-enable-preview": "true"},
-    )
-    thread = project_client.agents.create_thread()
-    message = project_client.agents.create_message(
-        thread_id=thread.id,
-        role="user",
-        content=query,
-    )
-    run = project_client.agents.create_and_process_run(thread_id=thread.id, agent_id=agent.id)
-    print(f"Run finished with status: {run.status}")
-    # Retrieve run step details to get Bing Search query link
-    # To render the webpage, we recommend you replace the endpoint of Bing search query URLs with `www.bing.com` and your Bing search query URL would look like "https://www.bing.com/search?q={search query}"
-    run_steps = project_client.agents.list_run_steps(run_id=run.id, thread_id=thread.id)
-    run_steps_data = run_steps['data']
-    print(f"Last run step detail: {run_steps_data}")
+    try:
+        agent = project_client.agents.create_agent(
+            model="gpt-4o",
+            instructions=BING_SEARCH_INSTRUCTIONS,
+            name="bing_search",
+            tools=bing.definitions,
+            headers={"x-ms-enable-preview": "true"},
+        )
+        thread = project_client.agents.create_thread()
+        message = project_client.agents.create_message(
+            thread_id=thread.id,
+            role="user",
+            content=query,
+        )
+        run = project_client.agents.create_and_process_run(thread_id=thread.id, agent_id=agent.id)
+        print(f"Run finished with status: {run.status}")
+        # Retrieve run step details to get Bing Search query link
+        # To render the webpage, we recommend you replace the endpoint of Bing search query URLs with `www.bing.com` and your Bing search query URL would look like "https://www.bing.com/search?q={search query}"
+        run_steps = project_client.agents.list_run_steps(run_id=run.id, thread_id=thread.id)
+        run_steps_data = run_steps['data']
+        print(f"Last run step detail: {run_steps_data}")
 
-    if run.status == "failed":
-        print(f"Run failed: {run.last_error}")
+        if run.status == "failed":
+            print(f"Run failed: {run.last_error}")
 
-    project_client.agents.delete_agent(agent.id)
-    print("Deleted agent")
+        project_client.agents.delete_agent(agent.id)
+        print("Deleted agent")
 
-    response_message = project_client.agents.list_messages(thread_id=thread.id).get_last_message_by_role(
-        MessageRole.AGENT
-    )
-    if response_message:
-        data = {"text_messages": [], "url_citation_annotations": []}
-        for text_message in response_message.text_messages:
-            print(f"Agent response: {text_message.text.value}")
-            data["text_messages"].append(text_message.text.value)
-        for annotation in response_message.url_citation_annotations:
-            print(f"URL Citation: [{annotation.url_citation.title}]({annotation.url_citation.url})")
-            data["url_citation_annotations"].append(f"[{annotation.url_citation.title}]({annotation.url_citation.url})")
-        print("Agent response:", data)
-        return str(data)
-    else:
-        print("No response message found.")
-        return "No response message found."
+        response_message = project_client.agents.list_messages(thread_id=thread.id).get_last_message_by_role(
+            MessageRole.AGENT
+        )
+        if response_message:
+            data = {"text_messages": [], "url_citation_annotations": []}
+            for text_message in response_message.text_messages:
+                print(f"Agent response: {text_message.text.value}")
+                data["text_messages"].append(text_message.text.value)
+            for annotation in response_message.url_citation_annotations:
+                print(f"URL Citation: [{annotation.url_citation.title}]({annotation.url_citation.url})")
+                data["url_citation_annotations"].append(f"[{annotation.url_citation.title}]({annotation.url_citation.url})")
+            print("Agent response:", data)
+            return str(data)
+        else:
+            print("No response message found.")
+            return "No response message found."
+    except Exception as e:
+        print(f"Error searching the internet: {e}")
+        return "An error occurred while searching the internet. Please try again."
 
 
 class ResponseScene(manim.Scene):
@@ -288,7 +292,7 @@ class ResponseScene(manim.Scene):
                     name = item["name"]
                     arguments = json.loads(item["arguments"])
                     if name == "exec_python":
-                        time.sleep(1.0)  # Avoid hitting the API too fast
+                        time.sleep(2.0)  # Avoid hitting the API too fast
                         out = self._internal_exec_python(**arguments)
                         outputs.append({
                             "type": "function_call_output",
@@ -296,7 +300,7 @@ class ResponseScene(manim.Scene):
                             "output": out,
                         })
                     elif name == "scope":
-                        time.sleep(1.0)  # Avoid hitting the API too fast
+                        time.sleep(2.0)  # Avoid hitting the API too fast
                         out = self._internal_show_scope()
                         outputs.append({
                             "type": "function_call_output",
@@ -304,7 +308,7 @@ class ResponseScene(manim.Scene):
                             "output": out,
                         })
                     elif name == "dir":
-                        time.sleep(1.0)  # Avoid hitting the API too fast
+                        time.sleep(2.0)  # Avoid hitting the API too fast
                         out = self._internal_show_dir(**arguments)
                         outputs.append({
                             "type": "function_call_output",
@@ -312,7 +316,7 @@ class ResponseScene(manim.Scene):
                             "output": out,
                         })
                     elif name == "doc":
-                        time.sleep(1.0)  # Avoid hitting the API too fast
+                        time.sleep(2.0)  # Avoid hitting the API too fast
                         out = self._internal_show_doc(**arguments)
                         outputs.append({
                             "type": "function_call_output",
@@ -320,7 +324,7 @@ class ResponseScene(manim.Scene):
                             "output": out,
                         })
                     elif name == "getparams":
-                        time.sleep(1.0)  # Avoid hitting the API too fast
+                        time.sleep(2.0)  # Avoid hitting the API too fast
                         out = self._internal_show_params(**arguments)
                         outputs.append({
                             "type": "function_call_output",
@@ -328,7 +332,7 @@ class ResponseScene(manim.Scene):
                             "output": out,
                         })
                     elif name == "list_fonts":
-                        time.sleep(1.0)  # Avoid hitting the API too fast
+                        time.sleep(2.0)  # Avoid hitting the API too fast
                         out = self._internal_list_fonts()
                         outputs.append({
                             "type": "function_call_output",
@@ -336,7 +340,7 @@ class ResponseScene(manim.Scene):
                             "output": out,
                         })
                     elif name == "try_latex_text":
-                        time.sleep(1.0)  # Avoid hitting the API too fast
+                        time.sleep(2.0)  # Avoid hitting the API too fast
                         out = self._internal_try_latex_text(**arguments)
                         outputs.append({
                             "type": "function_call_output",
@@ -344,7 +348,7 @@ class ResponseScene(manim.Scene):
                             "output": out,
                         })
                     elif name == "try_latex_math":
-                        time.sleep(1.0)  # Avoid hitting the API too fast
+                        time.sleep(2.0)  # Avoid hitting the API too fast
                         out = self._internal_try_latex_math(**arguments)
                         outputs.append({
                             "type": "function_call_output",
@@ -352,7 +356,7 @@ class ResponseScene(manim.Scene):
                             "output": out,
                         })
                     elif name == "eval":
-                        time.sleep(1.0)  # Avoid hitting the API too fast
+                        time.sleep(2.0)  # Avoid hitting the API too fast
                         out = self._internal_eval(**arguments)
                         outputs.append({
                             "type": "function_call_output",
@@ -360,7 +364,7 @@ class ResponseScene(manim.Scene):
                             "output": out,
                         })
                     elif name == "finish":
-                        time.sleep(1.0)  # Avoid hitting the API too fast
+                        time.sleep(2.0)  # Avoid hitting the API too fast
                         out = self._internal_finish_scene()
                         outputs.append({
                             "type": "function_call_output",
@@ -372,7 +376,7 @@ class ResponseScene(manim.Scene):
                     for content in contents:
                         if content["type"] == "output_text":
                             print(content["text"])
-            time.sleep(1.0)  # Avoid hitting the API too fast
+            time.sleep(2.0)  # Avoid hitting the API too fast
     
     def _internal_construct_with_data(self) -> None:
         for item in self._internal_data:
@@ -494,35 +498,39 @@ async def render_manim(
     is_3d: bool,
 ) -> str:
     """Render a Manim scene and send it to the Discord channel."""
-    scene = ResponseScene3D if is_3d else ResponseScene
-    scene_instance = scene(
-        title=title,
-        description=description,
-        data=None,
-    )
-    scene_instance.render()
-    scene = ResponseScene3D if is_3d else ResponseScene
-    scene_instance = scene(
-        title=title,
-        description=description,
-        data=scene_instance._internal_successful_data,
-    )
-    scene_instance.render()
-    num_plays = scene_instance.renderer.num_plays
-    if num_plays > 0:
-        path = pathlib.Path("media") / "videos" / "1080p60" / f"{scene.__name__}.mp4"
-        if not path.exists():
-            return "The video was not rendered. Please try again."
-        with open(path, "rb") as f:
-            await message.reply(file=discord.File(fp=f, filename=f"{title}.mp4"))
-        return "The video was rendered successfully. The user must watch it in the sent message."
-    else:
-        path = pathlib.Path("media") / "images" / f"{scene.__name__}_ManimCE_v0.19.0.png"
-        if not path.exists():
-            return "The image was not rendered. Please try again."
-        with open(path, "rb") as f:
-            await message.reply(file=discord.File(fp=f, filename=f"{title}.png"))
-        return "The image was rendered successfully. The user must watch it in the sent message."
+    try:
+        scene = ResponseScene3D if is_3d else ResponseScene
+        scene_instance = scene(
+            title=title,
+            description=description,
+            data=None,
+        )
+        scene_instance.render()
+        scene = ResponseScene3D if is_3d else ResponseScene
+        scene_instance = scene(
+            title=title,
+            description=description,
+            data=scene_instance._internal_successful_data,
+        )
+        scene_instance.render()
+        num_plays = scene_instance.renderer.num_plays
+        if num_plays > 0:
+            path = pathlib.Path("media") / "videos" / "1080p60" / f"{scene.__name__}.mp4"
+            if not path.exists():
+                return "The video was not rendered. Please try again."
+            with open(path, "rb") as f:
+                await message.reply(file=discord.File(fp=f, filename=f"{title}.mp4"))
+            return "The video was rendered successfully. The user must watch it in the sent message."
+        else:
+            path = pathlib.Path("media") / "images" / f"{scene.__name__}_ManimCE_v0.19.0.png"
+            if not path.exists():
+                return "The image was not rendered. Please try again."
+            with open(path, "rb") as f:
+                await message.reply(file=discord.File(fp=f, filename=f"{title}.png"))
+            return "The image was rendered successfully. The user must watch it in the sent message."
+    except Exception as e:
+        print(f"Error rendering Manim scene: {e}")
+        return "An error occurred while rendering the Manim scene. Please try again."
 
 
 last_math_response_id: str | None = None
@@ -533,68 +541,72 @@ def solve_math(
 ) -> str:
     """Create a math response using reasoning model."""
     global last_math_response_id
-    there_was_function_call: bool = True
-    text_parts = []
-    while there_was_function_call:
-        there_was_function_call = False
-        response = client.responses.create(
-            model="gpt-4.1",
-            instructions=MATH_SOLVE_INSTRUCTIONS,
-            input=problem_statement,
-            temperature=0.0,
-            previous_response_id=last_math_response_id,
-            tools=[
-                {
-                    "type": "function",
-                    "name": "sympy_calculator",
-                    "description": "Calculates mathematical expressions using Python and SymPy, NumPy and math module.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "expression": {
-                                "type": "string",
-                                "description": "Python expression to evaluate..",
+    try:
+        there_was_function_call: bool = True
+        text_parts = []
+        while there_was_function_call:
+            there_was_function_call = False
+            response = client.responses.create(
+                model="gpt-4.1",
+                instructions=MATH_SOLVE_INSTRUCTIONS,
+                input=problem_statement,
+                temperature=0.0,
+                previous_response_id=last_math_response_id,
+                tools=[
+                    {
+                        "type": "function",
+                        "name": "sympy_calculator",
+                        "description": "Calculates mathematical expressions using Python and SymPy, NumPy and math module.",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "expression": {
+                                    "type": "string",
+                                    "description": "Python expression to evaluate..",
+                                },
                             },
+                            "required": ["expression"],
+                            "additionalProperties": False,
                         },
-                        "required": ["expression"],
-                        "additionalProperties": False,
                     },
-                },
-            ],
-        )
-        last_math_response_id = response.id
-        output = response.output
-        problem_statement = []
-        for item in output:
-            if not isinstance(item, dict):
-                item = item.to_dict(mode="json")
-            if item.get("type") == "function_call":
-                name = item["name"]
-                arguments = json.loads(item["arguments"])
-                if name == "sympy_calculator":
-                    expression = arguments["expression"]
-                    print("Expression:", expression)
-                    try:
-                        scope = {"sympy": sympy, "math": math, "np": np}
-                        code = expression.split("\n")
-                        exec("\n".join(code[:-1]), scope)
-                        result = str(eval(code[-1], scope))
-                    except Exception as e:
-                        result = f"{type(e)}: {e}"
-                    print("Result:", result)
-                    problem_statement.append({
-                        "type": "function_call_output",
-                        "call_id": item["call_id"],
-                        "output": result,
-                    })
-                    response_id = response.id
-                    last_math_response_id = response_id
-                    there_was_function_call = True
-            content = item.get("content", None)
-            if content:
-                for content_item in content:
-                    if content_item["type"] == "output_text":
-                        print(content_item["text"])
-                        text_parts.append(content_item["text"])
-        time.sleep(1.0)  # Avoid hitting the API too fast
-    return "\n\n".join(text_parts)
+                ],
+            )
+            last_math_response_id = response.id
+            output = response.output
+            problem_statement = []
+            for item in output:
+                if not isinstance(item, dict):
+                    item = item.to_dict(mode="json")
+                if item.get("type") == "function_call":
+                    name = item["name"]
+                    arguments = json.loads(item["arguments"])
+                    if name == "sympy_calculator":
+                        expression = arguments["expression"]
+                        print("Expression:", expression)
+                        try:
+                            scope = {"sympy": sympy, "math": math, "np": np}
+                            code = expression.split("\n")
+                            exec("\n".join(code[:-1]), scope)
+                            result = str(eval(code[-1], scope))
+                        except Exception as e:
+                            result = f"{type(e)}: {e}"
+                        print("Result:", result)
+                        problem_statement.append({
+                            "type": "function_call_output",
+                            "call_id": item["call_id"],
+                            "output": result,
+                        })
+                        response_id = response.id
+                        last_math_response_id = response_id
+                        there_was_function_call = True
+                content = item.get("content", None)
+                if content:
+                    for content_item in content:
+                        if content_item["type"] == "output_text":
+                            print(content_item["text"])
+                            text_parts.append(content_item["text"])
+            time.sleep(2.0)  # Avoid hitting the API too fast
+        return "\n\n".join(text_parts)
+    except Exception as e:
+        print(f"Error solving math problem: {e}")
+        return "An error occurred while solving the math problem. Please try again."

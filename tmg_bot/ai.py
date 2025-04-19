@@ -149,13 +149,13 @@ class AI(commands.Cog):
                             name = content.get("name")
                             arguments = json.loads(out.get("arguments"))
                             if name == "render_manim":
-                                time.sleep(1.0)  # Avoid rate limit
+                                time.sleep(2.0)  # Avoid rate limit
                                 result = await render_manim(after, **arguments)
                             elif name == "bing_search":
-                                time.sleep(1.0)  # Avoid rate limit
+                                time.sleep(2.0)  # Avoid rate limit
                                 result = bing_search(**arguments)
                             elif name == "solve_math":
-                                time.sleep(1.0)  # Avoid rate limit
+                                time.sleep(2.0)  # Avoid rate limit
                                 result = solve_math(**arguments)
                             user_input.append({
                                 "type": "function_call_output",
@@ -170,7 +170,7 @@ class AI(commands.Cog):
                                         await after.reply(content=content.get("text")[i:i + 2000])
                                     if tex_message.search(content.get("text")):
                                         await render_tex(after, content.get("text"))
-                    time.sleep(1.0)  # Avoid rate limit
+                    time.sleep(2.0)  # Avoid rate limit
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message) -> None:
@@ -286,13 +286,13 @@ class AI(commands.Cog):
                             name = out.get("name")
                             arguments = json.loads(out.get("arguments"))
                             if name == "render_manim":
-                                time.sleep(1.0)  # Avoid rate limit
+                                time.sleep(2.0)  # Avoid rate limit
                                 result = await render_manim(message, **arguments)
                             elif name == "bing_search":
-                                time.sleep(1.0)  # Avoid rate limit
+                                time.sleep(2.0)  # Avoid rate limit
                                 result = bing_search(**arguments)
                             elif name == "solve_math":
-                                time.sleep(1.0)  # Avoid rate limit
+                                time.sleep(2.0)  # Avoid rate limit
                                 result = solve_math(**arguments)
                             user_input.append({
                                 "type": "function_call_output",
@@ -307,4 +307,4 @@ class AI(commands.Cog):
                                         await message.reply(content=content.get("text")[i:i + 2000])
                                     if tex_message.search(content.get("text")):
                                         await render_tex(message, content.get("text"))
-                    time.sleep(1.0)  # Avoid rate limit
+                    time.sleep(2.0)  # Avoid rate limit
