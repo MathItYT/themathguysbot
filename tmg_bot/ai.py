@@ -74,7 +74,7 @@ class AI(commands.Cog):
                 while there_was_function_call:
                     there_was_function_call = False
                     response = client.responses.create(
-                        model="gpt-4o",
+                        model="gpt-4.1",
                         input=user_input,
                         instructions=ACADEMIC_INSTRUCTIONS,
                         temperature=0.0,
@@ -211,7 +211,7 @@ class AI(commands.Cog):
                 while there_was_function_call:
                     there_was_function_call = False
                     response = client.responses.create(
-                        model="gpt-4o",
+                        model="gpt-4.1",
                         input=user_input,
                         instructions=ACADEMIC_INSTRUCTIONS,
                         temperature=0.0,
