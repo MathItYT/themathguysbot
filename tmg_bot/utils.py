@@ -34,7 +34,7 @@ def mp4_to_mp3(mp4_path: str, mp3_path: str) -> None:
 
 
 def process_video(video_data: bytes) -> list:
-    """Process video data and return parts for Gemini API."""
+    """Process video data and return parts for OpenAI API."""
     with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_video:
         temp_video.write(video_data)
         temp_video.seek(0)
@@ -131,10 +131,13 @@ async def attachment_parts(attachments: list[discord.Attachment]) -> list:
                 os.remove(temp_audio.name)
         elif attachment.content_type.startswith("application/pdf"):
             pdf_data = await attachment.read()
-            file = client.files.create(
-                file=pdf_data,
-                purpose="user_data"
-            )
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_pdf:
+                temp_pdf.write(pdf_data)
+                temp_pdf.seek(0)
+                file = client.files.create(
+                    file=open(temp_pdf.name, "rb"),
+                    purpose="user_data"
+                )
             parts.append(
                 {
                     "type": "input_file",
