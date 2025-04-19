@@ -136,7 +136,7 @@ async def attachment_parts(attachments: list[discord.Attachment]) -> list:
                 temp_pdf.seek(0)
                 file = client.files.create(
                     file=open(temp_pdf.name, "rb"),
-                    purpose="user_data"
+                    purpose="assistants",
                 )
             parts.append(
                 {
