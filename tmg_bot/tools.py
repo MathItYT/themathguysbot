@@ -554,6 +554,7 @@ def solve_math(
                             },
                         },
                         "required": ["expression"],
+                        "additionalProperties": False,
                     },
                 },
             ],
