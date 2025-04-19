@@ -500,6 +500,7 @@ async def render_manim(
     """Render a Manim scene and send it to the Discord channel."""
     try:
         scene = ResponseScene3D if is_3d else ResponseScene
+        manim.config.output_file = scene.__name__
         scene_instance = scene(
             title=title,
             description=description,
@@ -522,7 +523,7 @@ async def render_manim(
                 await message.reply(file=discord.File(fp=f, filename=f"{title}.mp4"))
             return "The video was rendered successfully. The user must watch it in the sent message."
         else:
-            path = pathlib.Path("media") / "images" / f"{scene.__name__}_ManimCE_v0.19.0.png"
+            path = pathlib.Path("media") / "images" / f"{scene.__name__}.png"
             if not path.exists():
                 return "The image was not rendered. Please try again."
             with open(path, "rb") as f:
