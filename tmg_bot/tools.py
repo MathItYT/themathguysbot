@@ -534,6 +534,7 @@ def solve_math(
     """Create a math response using reasoning model."""
     global last_math_response_id
     there_was_function_call: bool = True
+    text_parts = []
     while there_was_function_call:
         there_was_function_call = False
         response = client.responses.create(
@@ -564,7 +565,6 @@ def solve_math(
         last_math_response_id = response.id
         output = response.output
         problem_statement = []
-        text_parts = []
         for item in output:
             if not isinstance(item, dict):
                 item = item.to_dict(mode="json")

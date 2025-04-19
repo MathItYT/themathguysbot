@@ -14,7 +14,7 @@ DEFAULT_TEX_TEMPLATE: str = """
 \\usemintedstyle{{nord}}
 \\begin{{document}}
 \\color{{white}}
-\\begin{{markdown}}
+\\begin{{markdown}}[texMathDollars,texMathSingleBackslash,texMathDoubleBackslash]
 {md}
 \\end{{markdown}}
 \\end{{document}}
