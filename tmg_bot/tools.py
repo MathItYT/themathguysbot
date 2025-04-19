@@ -288,6 +288,7 @@ class ResponseScene(manim.Scene):
                     name = item["name"]
                     arguments = json.loads(item["arguments"])
                     if name == "exec_python":
+                        time.sleep(1.0)  # Avoid hitting the API too fast
                         out = self._internal_exec_python(**arguments)
                         outputs.append({
                             "type": "function_call_output",
@@ -295,6 +296,7 @@ class ResponseScene(manim.Scene):
                             "output": out,
                         })
                     elif name == "scope":
+                        time.sleep(1.0)  # Avoid hitting the API too fast
                         out = self._internal_show_scope()
                         outputs.append({
                             "type": "function_call_output",
@@ -302,6 +304,7 @@ class ResponseScene(manim.Scene):
                             "output": out,
                         })
                     elif name == "dir":
+                        time.sleep(1.0)  # Avoid hitting the API too fast
                         out = self._internal_show_dir(**arguments)
                         outputs.append({
                             "type": "function_call_output",
@@ -309,6 +312,7 @@ class ResponseScene(manim.Scene):
                             "output": out,
                         })
                     elif name == "doc":
+                        time.sleep(1.0)  # Avoid hitting the API too fast
                         out = self._internal_show_doc(**arguments)
                         outputs.append({
                             "type": "function_call_output",
@@ -316,6 +320,7 @@ class ResponseScene(manim.Scene):
                             "output": out,
                         })
                     elif name == "getparams":
+                        time.sleep(1.0)  # Avoid hitting the API too fast
                         out = self._internal_show_params(**arguments)
                         outputs.append({
                             "type": "function_call_output",
@@ -323,6 +328,7 @@ class ResponseScene(manim.Scene):
                             "output": out,
                         })
                     elif name == "list_fonts":
+                        time.sleep(1.0)  # Avoid hitting the API too fast
                         out = self._internal_list_fonts()
                         outputs.append({
                             "type": "function_call_output",
@@ -330,6 +336,7 @@ class ResponseScene(manim.Scene):
                             "output": out,
                         })
                     elif name == "try_latex_text":
+                        time.sleep(1.0)  # Avoid hitting the API too fast
                         out = self._internal_try_latex_text(**arguments)
                         outputs.append({
                             "type": "function_call_output",
@@ -337,6 +344,7 @@ class ResponseScene(manim.Scene):
                             "output": out,
                         })
                     elif name == "try_latex_math":
+                        time.sleep(1.0)  # Avoid hitting the API too fast
                         out = self._internal_try_latex_math(**arguments)
                         outputs.append({
                             "type": "function_call_output",
@@ -344,6 +352,7 @@ class ResponseScene(manim.Scene):
                             "output": out,
                         })
                     elif name == "eval":
+                        time.sleep(1.0)  # Avoid hitting the API too fast
                         out = self._internal_eval(**arguments)
                         outputs.append({
                             "type": "function_call_output",
@@ -351,6 +360,7 @@ class ResponseScene(manim.Scene):
                             "output": out,
                         })
                     elif name == "finish":
+                        time.sleep(1.0)  # Avoid hitting the API too fast
                         out = self._internal_finish_scene()
                         outputs.append({
                             "type": "function_call_output",

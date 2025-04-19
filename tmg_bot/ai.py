@@ -283,10 +283,13 @@ class AI(commands.Cog):
                             name = out.get("name")
                             arguments = json.loads(out.get("arguments"))
                             if name == "render_manim":
+                                time.sleep(1.0)  # Avoid rate limit
                                 result = await render_manim(message, **arguments)
                             elif name == "bing_search":
+                                time.sleep(1.0)  # Avoid rate limit
                                 result = bing_search(**arguments)
                             elif name == "solve_math":
+                                time.sleep(1.0)  # Avoid rate limit
                                 result = solve_math(**arguments)
                             user_input.append({
                                 "type": "function_call_output",
