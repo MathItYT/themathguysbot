@@ -9,7 +9,7 @@ DEFAULT_TEX_TEMPLATE: str = """
 \\usepackage{{minted}}
 \\usepackage[smartEllipses,hashEnumerators,fencedCode,hybrid]{{markdown}}
 \\markdownSetup{{renderers={{
-  link = {{\href{{#2}}{{#1}}}}
+  link = {{\\href{{#2}}{{#1}}}}
 }}}}
 \\usemintedstyle{{nord}}
 \\begin{{document}}
