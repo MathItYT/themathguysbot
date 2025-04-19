@@ -576,4 +576,5 @@ def solve_math(
                 for content_item in content:
                     if content_item["type"] == "input_text":
                         print(content_item["text"])
+        time.sleep(1.0)  # Avoid hitting the API too fast
     return response.output_text

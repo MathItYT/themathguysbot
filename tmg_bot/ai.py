@@ -2,7 +2,7 @@ from discord.ext import commands
 import discord
 import json
 from io import StringIO
-import os
+import time
 from typing import Any
 
 from .utils import attachment_parts, render_tex
@@ -167,6 +167,7 @@ class AI(commands.Cog):
                                         await after.reply(content=content.get("text")[i:i + 2000])
                                     if tex_message.search(content.get("text")):
                                         await render_tex(after, content.get("text"))
+                    time.sleep(1.0)  # Avoid rate limit
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message) -> None:
