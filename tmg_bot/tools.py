@@ -467,7 +467,9 @@ class ResponseScene(manim.Scene):
     
     def _internal_eval(self, expression: str) -> str:
         try:
-            obj = eval(expression, self._internal_scope)
+            code = expression.split("\n")
+            exec("\n".join(code[:-1]), self._internal_scope)
+            obj = eval(code[-1], self._internal_scope)
             print("Eval:", obj)
             return str(obj)
         except Exception as e:
@@ -572,7 +574,10 @@ def solve_math(
                     expression = arguments["expression"]
                     print("Expression:", expression)
                     try:
-                        result = str(eval(expression, {"sympy": sympy, "math": math, "np": np}))
+                        scope = {"sympy": sympy, "math": math, "np": np}
+                        code = expression.split("\n")
+                        exec("\n".join(code[:-1]), scope)
+                        result = str(eval(code[-1], scope))
                     except Exception as e:
                         result = f"{type(e)}: {e}"
                     print("Result:", result)
