@@ -131,12 +131,14 @@ async def attachment_parts(attachments: list[discord.Attachment]) -> list:
                 os.remove(temp_audio.name)
         elif attachment.content_type.startswith("application/pdf"):
             pdf_data = await attachment.read()
-            b64_pdf = base64.b64encode(pdf_data).decode("utf-8")
+            file = client.files.create(
+                file=pdf_data,
+                purpose="user_data"
+            )
             parts.append(
                 {
                     "type": "input_file",
-                    "filename": attachment.filename,
-                    "file_data": f"data:application/pdf;base64,{b64_pdf}",
+                    "file_id": file.id,
                 }
             )
     return parts
