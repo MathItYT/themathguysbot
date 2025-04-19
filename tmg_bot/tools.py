@@ -370,7 +370,7 @@ class ResponseScene(manim.Scene):
                 contents = item.get("content", None)
                 if contents:
                     for content in contents:
-                        if content["type"] == "input_text":
+                        if content["type"] == "output_text":
                             print(content["text"])
             time.sleep(1.0)  # Avoid hitting the API too fast
     
@@ -544,7 +544,7 @@ def solve_math(
                 {
                     "type": "function",
                     "name": "sympy_calculator",
-                    "description": "Calculates mathematical expressions using Python and SymPy.",
+                    "description": "Calculates mathematical expressions using Python and SymPy, NumPy and math module.",
                     "parameters": {
                         "type": "object",
                         "properties": {
@@ -565,7 +565,7 @@ def solve_math(
         for item in output:
             if not isinstance(item, dict):
                 item = item.to_dict(mode="json")
-            if item["type"] == "function_call":
+            if item.get("type") == "function_call":
                 name = item["name"]
                 arguments = json.loads(item["arguments"])
                 if name == "sympy_calculator":
@@ -585,7 +585,7 @@ def solve_math(
             content = item.get("content", None)
             if content:
                 for content_item in content:
-                    if content_item["type"] == "input_text":
+                    if content_item["type"] == "output_text":
                         print(content_item["text"])
         time.sleep(1.0)  # Avoid hitting the API too fast
     return response.output_text
