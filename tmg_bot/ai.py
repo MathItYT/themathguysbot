@@ -301,3 +301,4 @@ class AI(commands.Cog):
                                         await message.reply(content=content.get("text")[i:i + 2000])
                                     if tex_message.search(content.get("text")):
                                         await render_tex(message, content.get("text"))
+                    time.sleep(1.0)  # Avoid rate limit
