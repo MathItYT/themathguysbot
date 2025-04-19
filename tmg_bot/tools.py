@@ -269,7 +269,7 @@ class ResponseScene(manim.Scene):
         first_time: bool = True
         while not self._internal_finished:
             response = client.responses.create(
-                model="gpt-4o",
+                model="gpt-4.1",
                 instructions=MANIM_BUILDER_INSTRUCTIONS,
                 input=sio.getvalue() if first_time else outputs,
                 temperature=0.0,
@@ -535,7 +535,7 @@ def solve_math(
     while there_was_function_call:
         there_was_function_call = False
         response = client.responses.create(
-            model="gpt-4o",
+            model="gpt-4.1",
             instructions=MATH_SOLVE_INSTRUCTIONS,
             input=problem_statement,
             temperature=0.0,
@@ -550,7 +550,7 @@ def solve_math(
                         "properties": {
                             "expression": {
                                 "type": "string",
-                                "description": "Python expression to evaluate.",
+                                "description": "Python expression to evaluate..",
                             },
                         },
                         "required": ["expression"],
@@ -570,10 +570,12 @@ def solve_math(
                 arguments = json.loads(item["arguments"])
                 if name == "sympy_calculator":
                     expression = arguments["expression"]
+                    print("Expression:", expression)
                     try:
                         result = str(eval(expression, {"sympy": sympy, "math": math, "np": np}))
                     except Exception as e:
                         result = f"{type(e)}: {e}"
+                    print("Result:", result)
                     problem_statement.append({
                         "type": "function_call_output",
                         "call_id": item["call_id"],

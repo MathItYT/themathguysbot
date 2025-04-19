@@ -58,6 +58,16 @@ the `exec_python` function to execute Python code, which is considered to be ins
 - When finishing the scene, ensure to call `finish` tool to finish the scene rendering. This will be your last interaction with the scene, and after that you will be prompted with a totally new scene, with its own title and description, and a new scope.
 - If a timeout of 5 minutes is reached, you will be notified and from that moment, the scene has been finished automatically, so you won't call any tool after that. Then, a totally new scene will be prompted to you, with its own title and description, and a new scope.
 - NEVER ask to continue, you must do all the job as you think is best.
+- `eval` must be one-liner, without any variable declaration or assignment. For example, instead of:
+```python
+x = 3
+y = 4
+x + y
+```
+It must be:
+```python
+3 + 4
+```
 """
 
 MATH_SOLVE_INSTRUCTIONS: str = """
@@ -80,5 +90,14 @@ You are an expert math solver. Your task is to solve the problem stated in the p
 sympy.symbols('x y z')
 sympy.sin(x) + sympy.cos(y)
 ```
-- Also, there's no need to import the library, it's already present in the scope.
+- You won't import any library, they're all imported by default, and as import is disabled, it will raise an error.
+- Expressions must be one-liner, without any variable declaration or assignment. For example, instead of:
+```python
+x = sympy.symbols('x')
+x + 1
+```
+You must use:
+```python
+sympy.symbols('x') + 1
+```
 """
