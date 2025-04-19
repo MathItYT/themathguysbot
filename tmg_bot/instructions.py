@@ -91,7 +91,7 @@ sympy.symbols('x y z')
 sympy.sin(x) + sympy.cos(y)
 ```
 - You won't import any library, they're all imported by default, and as import is disabled, it will raise an error.
-- Expressions must be one-liner, without any variable declaration or assignment. For example, instead of:
+- Expressions MUST BE ONE-LINER, and ONLY ONE EXPRESSION, without any variable declaration or assignment. For example, instead of:
 ```python
 x = sympy.symbols('x')
 x + 1
