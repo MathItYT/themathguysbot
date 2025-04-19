@@ -157,7 +157,6 @@ def fix_tex_bugs(text: str) -> str:
     without_mentions = mentions.sub("Usuario de Discord", without_emojis)
     beautify_quotes = double_quotes.sub(r"“\1”", without_mentions)
     beautify_quotes = single_quotes.sub(r"‘\1’", beautify_quotes)
-    # r"(\$.*?\$)|(\$\$.*?\$\$)|\\\(.*?\\\)|\\\[.*?\\\]", that's the regex for tex_message
     force_dollars = tex_message.sub(
         lambda m: change_prefix_and_suffix(m.group(0)), beautify_quotes
     )
