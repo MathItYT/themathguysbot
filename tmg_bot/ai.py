@@ -1,22 +1,21 @@
 from discord.ext import commands
 import discord
-import requests
 import json
 from io import StringIO
 import os
 from typing import Any
 
-from .utils import attachment_parts, render_tex, internet_search, render_manim, math_problem_state, solve_math
+from .utils import attachment_parts, render_tex
+from .tools import render_manim, solve_math, bing_search
 from .instructions import ACADEMIC_INSTRUCTIONS
 from .regex import tex_message
 from .locks import ai_lock
-
-
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+from .client import client
 
 
 class AI(commands.Cog):
-    history: list = []
+    current_input: list[dict[str, Any]] = []
+    previous_response_id: str | None = None
 
     def __init__(self, bot: discord.Bot) -> None:
         self.bot = bot
@@ -38,6 +37,8 @@ class AI(commands.Cog):
     
     @commands.Cog.listener()
     async def on_message_edit(self, before: discord.Message, after: discord.Message) -> None:
+        if after.author == self.bot.user:
+            return
         async with ai_lock:
             io = StringIO()
             json.dump(
@@ -49,222 +50,129 @@ class AI(commands.Cog):
                     "channel_mention": after.channel.mention if not isinstance(after.channel, discord.DMChannel) else after.author.mention,
                     "time_utc": after.created_at.strftime("%Y-%m-%d %H:%M:%S"),
                     "replying_to_user_with_ping": after.reference.resolved.author.mention if after.reference and isinstance(after.reference.resolved, discord.Message) else None,
+                    "previous_message": before.content,
                 },
                 io,
                 ensure_ascii=False,
                 indent=4,
             )
             io.seek(0)
-            user_input = [
+            self.current_input.append(
                 {
-                    "text": io.read(),
+                    "type": "input_text",
+                    "text": io.getvalue(),
                 }
-            ]
-            user_input.extend(await attachment_parts(after.attachments))
-            AI.history.append({
-                "role": "user",
-                "parts": user_input,
-            })
+            )
+            self.current_input.extend(await attachment_parts(after.attachments))
             if self.bot.user.mentioned_in(after) or isinstance(after.channel, discord.DMChannel):
+                user_input = {
+                    "role": "user",
+                    "content": self.current_input.copy(),
+                }
                 there_was_function_call: bool = True
+                self.current_input.clear()
                 while there_was_function_call:
-                    function_response: dict[str, Any] | None = None
-                    response = requests.post(
-                        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent",
-                        params={"key": GOOGLE_API_KEY},
-                        headers={"Content-Type": "application/json"},
-                        json={
-                            "contents": AI.history,
-                            "system_instruction": {
-                                "parts": [
-                                    {
-                                        "text": ACADEMIC_INSTRUCTIONS,
-                                    }
-                                ]
-                            },
-                            "tools": [
-                                {
-                                    "functionDeclarations": [
-                                        {
-                                            "name": "internet_search",
-                                            "description": "Search the internet for information.",
-                                            "parameters": {
-                                                "type": "object",
-                                                "properties": {
-                                                    "query": {
-                                                        "type": "string",
-                                                        "description": "The search query.",
-                                                    },
-                                                },
-                                                "required": ["query"],
-                                            },
-                                        }
-                                    ],
-                                },
-                                {
-                                    "functionDeclarations": [
-                                        {
-                                            "name": "render_manim",
-                                            "description": "Internally it creates a code for a Manim scene and renders it.",
-                                            "parameters": {
-                                                "type": "object",
-                                                "properties": {
-                                                    "title": {
-                                                        "type": "string",
-                                                        "description": "The scene's title.",
-                                                    },
-                                                    "description": {
-                                                        "type": "string",
-                                                        "description": "The description for the scene.",
-                                                    },
-                                                    "steps": {
-                                                        "type": "array",
-                                                        "items": {
-                                                            "type": "string",
-                                                            "description": "The steps to follow.",
-                                                        },
-                                                        "description": "Clear and concise steps outlining the actions to be taken in the scene.",
-                                                    },
-                                                    "considerations": {
-                                                        "type": "array",
-                                                        "items": {
-                                                            "type": "string",
-                                                            "description": "User will let you know some considerations, you must take them into account.",
-                                                        },
-                                                        "description": "Considerations for the scene.",
-                                                    },
-                                                    "is_3d": {
-                                                        "type": "boolean",
-                                                        "description": "Whether the scene is 3D or not.",
-                                                    },
-                                                },
-                                                "required": ["title", "description", "steps", "considerations", "is_3d"],
-                                            },
-                                        }
-                                    ],
-                                },
-                                {
-                                    "functionDeclarations": [
-                                        {
-                                            "name": "math_problem_state",
-                                            "description": "State the math problem in a way the math solver can understand.",
-                                            "parameters": {
-                                                "type": "object",
-                                                "properties": {
-                                                    "problem": {
-                                                        "type": "string",
-                                                        "description": "The math problem in user's words.",
-                                                    },
-                                                },
-                                                "required": ["problem"],
-                                            },
+                    there_was_function_call = False
+                    response = client.responses.create(
+                        model="gpt-4o",
+                        input=user_input,
+                        instructions=ACADEMIC_INSTRUCTIONS,
+                        temperature=0.0,
+                        previous_response_id=self.previous_response_id,
+                        tools=[
+                            {
+                                "type": "function",
+                                "name": "bing_search",
+                                "description": "Search the internet.",
+                                "parameters": {
+                                    "type": "object",
+                                    "properties": {
+                                        "query": {
+                                            "type": "string",
+                                            "description": "The search query.",
                                         },
-                                        {
-                                            "name": "solve_math",
-                                            "description": "Solve a math problem.",
-                                            "parameters": {
-                                                "type": "object",
-                                                "properties": {
-                                                    "problem_statement": {
-                                                        "type": "string",
-                                                        "description": "The math problem statement.",
-                                                    },
-                                                },
-                                                "required": ["problem_statement"],
-                                            },
-                                        }
-                                    ]
+                                    },
+                                    "required": ["query"],
+                                    "additionalProperties": False,
                                 }
-                            ],
-                        }
+                            },
+                            {
+                                "type": "function",
+                                "name": "render_manim",
+                                "description": "Render a Manim animation.",
+                                "parameters": {
+                                    "type": "object",
+                                    "properties": {
+                                        "title": {
+                                            "type": "string",
+                                            "description": "The title of the animation.",
+                                        },
+                                        "description": {
+                                            "type": "string",
+                                            "description": "The description of the animation. It's all what should be shown in the rendered video.",
+                                        },
+                                        "is_3d": {
+                                            "type": "boolean",
+                                            "description": "Whether the scene is 3D or not.",
+                                        },
+                                    },
+                                    "required": ["title", "description", "is_3d"],
+                                    "additionalProperties": False,
+                                }
+                            },
+                            {
+                                "type": "function",
+                                "name": "solve_math",
+                                "description": "Solve a math problem.",
+                                "parameters": {
+                                    "type": "object",
+                                    "properties": {
+                                        "problem_statement": {
+                                            "type": "string",
+                                            "description": "The math problem statement.",
+                                        },
+                                    },
+                                    "required": ["problem_statement"],
+                                    "additionalProperties": False,
+                                }
+                            }
+                        ]
                     )
-                    response_json = response.json()
-                    print(response_json)
-                    try:
-                        response.raise_for_status()
-                    except requests.exceptions.HTTPError as e:
-                        AI.history.clear()
-                    candidate = response_json["candidates"][0]
-                    content = candidate["content"]
-                    parts = content["parts"]
-                    AI.history.append(content)
-                    for part in parts:
-                        if "text" in part:
-                            if len(part["text"]) > 0:
-                                if isinstance(after.channel, discord.DMChannel):   
-                                    for i in range(0, len(part["text"]), 2000):
-                                        await after.author.send(part["text"][i:i+2000], reference=after)
-                                else:
-                                    for i in range(0, len(part["text"]), 2000):
-                                        await after.channel.send(part["text"][i:i+2000], reference=after)
-                                if tex_message.search(part["text"]):
-                                    await render_tex(after, part["text"])
-                        if "functionCall" in part:
-                            if function_response is None:
-                                function_response = {
-                                    "role": "function",
-                                    "parts": []
-                                }
-                            name = part["functionCall"]["name"]
-                            args = part["functionCall"]["args"]
-                            if name == "internet_search":
-                                output = internet_search(**args)
-                                function_response["parts"].append({
-                                    "functionResponse": {
-                                        "name": name,
-                                        "response": {
-                                            "name": name,
-                                            "content": output,
-                                        }
-                                    }
-                                })
-                            elif name == "render_manim":
-                                err_or_suc_msg = await render_manim(after, **args)
-                                function_response["parts"].append({
-                                    "functionResponse": {
-                                        "name": name,
-                                        "response": {
-                                            "name": name,
-                                            "content": err_or_suc_msg
-                                        }
-                                    }
-                                })
-                            elif name == "math_problem_state":
-                                output = math_problem_state(**args)
-                                function_response["parts"].append(
-                                    {
-                                        "functionResponse": {
-                                            "name": name,
-                                            "response": {
-                                                "name": name,
-                                                "content": output,
-                                            }
-                                        }
-                                    }
-                                )
+                    output = response.output
+                    self.previous_response_id = response.id
+                    user_input = []
+                    for out in output:
+                        if not isinstance(out, dict):
+                            out = out.to_dict(mode="json")
+                        if out.get("type") == "function_call":
+                            there_was_function_call = True
+                            name = content.get("name")
+                            arguments = json.loads(out.get("arguments"))
+                            if name == "render_manim":
+                                result = await render_manim(after, **arguments)
+                            elif name == "bing_search":
+                                result = bing_search(**arguments)
                             elif name == "solve_math":
-                                output = solve_math(**args)
-                                AI.history.append(
-                                    {
-                                        "functionResponse": {
-                                            "name": name,
-                                            "response": {
-                                                "name": name,
-                                                "content": output,
-                                            }
-                                        }
-                                    }
-                                )
-                            AI.history.append(function_response)
-                                
-                    there_was_function_call = function_response is not None
-
+                                result = solve_math(**arguments)
+                            user_input.append({
+                                "type": "function_call_output",
+                                "call_id": out.get("call_id"),
+                                "output": str(result)
+                            })
+                        contents = out.get("content")
+                        if contents:
+                            for content in contents:
+                                if content.get("type") == "output_text":
+                                    for i in range(0, len(content.get("text")), 2000):
+                                        await after.reply(content=content.get("text")[i:i + 2000])
+                                    if tex_message.search(content.get("text")):
+                                        await render_tex(after, content.get("text"))
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message) -> None:
+        if message.author == self.bot.user:
+            return
         async with ai_lock:
-            if message.author == self.bot.user:
-                return
             io = StringIO()
             json.dump(
                 {
@@ -275,214 +183,120 @@ class AI(commands.Cog):
                     "channel_mention": message.channel.mention if not isinstance(message.channel, discord.DMChannel) else message.author.mention,
                     "time_utc": message.created_at.strftime("%Y-%m-%d %H:%M:%S"),
                     "replying_to_user_with_ping": message.reference.resolved.author.mention if message.reference and isinstance(message.reference.resolved, discord.Message) else None,
+                    "previous_message": None
                 },
                 io,
                 ensure_ascii=False,
                 indent=4,
             )
             io.seek(0)
-            user_input = [
+            self.current_input.append(
                 {
-                    "text": io.read(),
+                    "type": "input_text",
+                    "text": io.getvalue(),
                 }
-            ]
-            user_input.extend(await attachment_parts(message.attachments))
-            AI.history.append({
-                "role": "user",
-                "parts": user_input,
-            })
+            )
+            self.current_input.extend(await attachment_parts(message.attachments))
             if self.bot.user.mentioned_in(message) or isinstance(message.channel, discord.DMChannel):
+                user_input = [{
+                    "role": "user",
+                    "content": self.current_input.copy(),
+                }]
                 there_was_function_call: bool = True
+                self.current_input.clear()
                 while there_was_function_call:
-                    function_response: dict[str, Any] | None = None
-                    response = requests.post(
-                        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent",
-                        params={"key": GOOGLE_API_KEY},
-                        headers={"Content-Type": "application/json"},
-                        json={
-                            "contents": AI.history,
-                            "system_instruction": {
-                                "parts": [
-                                    {
-                                        "text": ACADEMIC_INSTRUCTIONS,
-                                    }
-                                ]
-                            },
-                            "tools": [
-                                {
-                                    "functionDeclarations": [
-                                        {
-                                            "name": "internet_search",
-                                            "description": "Search the internet for information.",
-                                            "parameters": {
-                                                "type": "object",
-                                                "properties": {
-                                                    "query": {
-                                                        "type": "string",
-                                                        "description": "The search query.",
-                                                    },
-                                                },
-                                                "required": ["query"],
-                                            },
-                                        }
-                                    ],
-                                },
-                                {
-                                    "functionDeclarations": [
-                                        {
-                                            "name": "render_manim",
-                                            "description": "Internally it creates a code for a Manim scene and renders it.",
-                                            "parameters": {
-                                                "type": "object",
-                                                "properties": {
-                                                    "title": {
-                                                        "type": "string",
-                                                        "description": "The scene's title.",
-                                                    },
-                                                    "description": {
-                                                        "type": "string",
-                                                        "description": "The description for the scene.",
-                                                    },
-                                                    "steps": {
-                                                        "type": "array",
-                                                        "items": {
-                                                            "type": "string",
-                                                            "description": "The steps to follow.",
-                                                        },
-                                                        "description": "Clear and concise steps outlining the actions to be taken in the scene.",
-                                                    },
-                                                    "considerations": {
-                                                        "type": "array",
-                                                        "items": {
-                                                            "type": "string",
-                                                            "description": "User will let you know some considerations, you must take them into account.",
-                                                        },
-                                                        "description": "Considerations for the scene.",
-                                                    },
-                                                    "is_3d": {
-                                                        "type": "boolean",
-                                                        "description": "Whether the scene is 3D or not.",
-                                                    },
-                                                },
-                                                "required": ["title", "description", "steps", "considerations", "is_3d"],
-                                            },
-                                        }
-                                    ],
-                                },
-                                {
-                                    "functionDeclarations": [
-                                        {
-                                            "name": "math_problem_state",
-                                            "description": "State the math problem in a way the math solver can understand.",
-                                            "parameters": {
-                                                "type": "object",
-                                                "properties": {
-                                                    "problem": {
-                                                        "type": "string",
-                                                        "description": "The math problem in user's words.",
-                                                    },
-                                                },
-                                                "required": ["problem"],
-                                            },
+                    there_was_function_call = False
+                    response = client.responses.create(
+                        model="gpt-4o",
+                        input=user_input,
+                        instructions=ACADEMIC_INSTRUCTIONS,
+                        temperature=0.0,
+                        previous_response_id=self.previous_response_id,
+                        tools=[
+                            {
+                                "type": "function",
+                                "name": "bing_search",
+                                "description": "Search the internet.",
+                                "parameters": {
+                                    "type": "object",
+                                    "properties": {
+                                        "query": {
+                                            "type": "string",
+                                            "description": "The search query.",
                                         },
-                                        {
-                                            "name": "solve_math",
-                                            "description": "Solve a math problem.",
-                                            "parameters": {
-                                                "type": "object",
-                                                "properties": {
-                                                    "problem_statement": {
-                                                        "type": "string",
-                                                        "description": "The math problem statement.",
-                                                    },
-                                                },
-                                                "required": ["problem_statement"],
-                                            },
-                                        }
-                                    ]
+                                    },
+                                    "required": ["query"],
+                                    "additionalProperties": False,
+                                },
+                            },
+                            {
+                                "type": "function",
+                                "name": "render_manim",
+                                "description": "Render a Manim animation.",
+                                "parameters": {
+                                    "type": "object",
+                                    "properties": {
+                                        "title": {
+                                            "type": "string",
+                                            "description": "The title of the animation.",
+                                        },
+                                        "description": {
+                                            "type": "string",
+                                            "description": "The description of the animation. It's all what should be shown in the rendered video.",
+                                        },
+                                        "is_3d": {
+                                            "type": "boolean",
+                                            "description": "Whether the scene is 3D or not.",
+                                        },
+                                    },
+                                    "additionalProperties": False,
+                                    "required": ["title", "description", "is_3d"],
                                 }
-                            ],
-                        }
+                            },
+                            {
+                                "type": "function",
+                                "name": "solve_math",
+                                "description": "Solve a math problem.",
+                                "parameters": {
+                                    "type": "object",
+                                    "properties": {
+                                        "problem_statement": {
+                                            "type": "string",
+                                            "description": "The math problem statement.",
+                                        },
+                                    },
+                                    "additionalProperties": False,
+                                    "required": ["problem_statement"],
+                                }
+                            }
+                        ]
                     )
-                    response_json = response.json()
-                    print(response_json)
-                    try:
-                        response.raise_for_status()
-                    except requests.exceptions.HTTPError as e:
-                        AI.history.clear()
-                    candidate = response_json["candidates"][0]
-                    content = candidate["content"]
-                    parts = content["parts"]
-                    AI.history.append(content)
-                    for part in parts:
-                        if "text" in part:
-                            if len(part["text"]) > 0:
-                                if isinstance(message.channel, discord.DMChannel):
-                                    for i in range(0, len(part["text"]), 2000):
-                                        if len(part["text"][i:i+2000].strip()) > 0:
-                                            await message.author.send(part["text"][i:i+2000], reference=message)
-                                else:
-                                    for i in range(0, len(part["text"]), 2000):
-                                        if len(part["text"][i:i+2000].strip()) > 0:
-                                            await message.channel.send(part["text"][i:i+2000], reference=message)
-                                if tex_message.search(part["text"]):
-                                    await render_tex(message, part["text"])
-                        if "functionCall" in part:
-                            if function_response is None:
-                                function_response = {
-                                    "role": "function",
-                                    "parts": []
-                                }
-                            name = part["functionCall"]["name"]
-                            args = part["functionCall"]["args"]
-                            if name == "internet_search":
-                                output = internet_search(**args)
-                                function_response["parts"].append({
-                                    "functionResponse": {
-                                        "name": name,
-                                        "response": {
-                                            "name": name,
-                                            "content": output,
-                                        }
-                                    }
-                                })
-                            elif name == "render_manim":
-                                err_or_suc_msg = await render_manim(message, **args)
-                                function_response["parts"].append({
-                                    "functionResponse": {
-                                        "name": name,
-                                        "response": {
-                                            "name": name,
-                                            "content": err_or_suc_msg
-                                        }
-                                    }
-                                })
-                            elif name == "math_problem_state":
-                                output = math_problem_state(**args)
-                                function_response["parts"].append(
-                                    {
-                                        "functionResponse": {
-                                            "name": name,
-                                            "response": {
-                                                "name": name,
-                                                "content": output,
-                                            }
-                                        }
-                                    }
-                                )
+                    output = response.output
+                    self.previous_response_id = response.id
+                    user_input = []
+                    for out in output:
+                        if not isinstance(out, dict):
+                            out = out.to_dict(mode="json")
+                        if out.get("type") == "function_call":
+                            there_was_function_call = True
+                            name = out.get("name")
+                            arguments = json.loads(out.get("arguments"))
+                            if name == "render_manim":
+                                result = await render_manim(message, **arguments)
+                            elif name == "bing_search":
+                                result = bing_search(**arguments)
                             elif name == "solve_math":
-                                output = solve_math(**args)
-                                function_response["parts"].append(
-                                    {
-                                        "functionResponse": {
-                                            "name": name,
-                                            "response": {
-                                                "name": name,
-                                                "content": output,
-                                            }
-                                        }
-                                    }
-                                )
-                    if function_response is not None:
-                        AI.history.append(function_response)
-                    there_was_function_call = function_response is not None
+                                result = solve_math(**arguments)
+                            user_input.append({
+                                "type": "function_call_output",
+                                "call_id": out.get("call_id"),
+                                "output": str(result)
+                            })
+                        contents = out.get("content")
+                        if contents:
+                            for content in contents:
+                                if content.get("type") == "output_text":
+                                    for i in range(0, len(content.get("text")), 2000):
+                                        await message.reply(content=content.get("text")[i:i + 2000])
+                                    if tex_message.search(content.get("text")):
+                                        await render_tex(message, content.get("text"))

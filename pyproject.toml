@@ -12,8 +12,11 @@ python-dotenv = "^1.0.1"
 numpy = "^2.2.3"
 sympy = "^1.13.3"
 emoji = "^2.14.1"
-requests = "^2.32.3"
 manim = "^0.19.0"
+opencv-python = "^4.11.0.86"
+azure-ai-projects = "^1.0.0b9"
+azure-identity = "^1.21.0"
+openai = "^1.75.0"
 
 [tool.poetry.scripts]
 tmg-bot = "tmg_bot.__main__:main"
