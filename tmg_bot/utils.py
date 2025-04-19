@@ -10,6 +10,7 @@ import tempfile
 import math
 from io import BytesIO
 from PIL import Image
+import pdf2image
 
 from .regex import tex_message
 from .tex_templates import DEFAULT_TEX_TEMPLATE
@@ -131,17 +132,39 @@ async def attachment_parts(attachments: list[discord.Attachment]) -> list:
                 os.remove(temp_audio.name)
         elif attachment.content_type.startswith("application/pdf"):
             pdf_data = await attachment.read()
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_pdf:
-                temp_pdf.write(pdf_data)
-                temp_pdf.seek(0)
-                file = client.files.create(
-                    file=open(temp_pdf.name, "rb"),
-                    purpose="assistants",
+            images = pdf2image.convert_from_bytes(pdf_data)
+            parts.append(
+                {
+                    "type": "input_text",
+                    "text": f"The following {len(images)} pages are from a PDF file.",
+                }
+            )
+            for i, image in enumerate(images):
+                bio = BytesIO()
+                image.save(bio, format="JPEG")
+                bio.seek(0)
+                data = bio.read()
+                data = base64.b64encode(data).decode("utf-8")
+                parts.append(
+                    {
+                        "type": "input_image",
+                        "image_url": f"data:image/jpeg;base64,{data}",
+                        "detail": "high",
+                    }
                 )
             parts.append(
                 {
-                    "type": "input_file",
-                    "file_id": file.id,
+                    "type": "input_text",
+                    "text": "The PDF file has ended.",
+                }
+            )
+        elif attachment.content_type.startswith("text/"):
+            text_data = await attachment.read()
+            text = text_data.decode("utf-8")
+            parts.append(
+                {
+                    "type": "input_text",
+                    "text": f"A text file has been sent with mime type {attachment.content_type}.\n\n# Content\n{text}",
                 }
             )
     return parts
