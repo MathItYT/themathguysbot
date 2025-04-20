@@ -106,7 +106,7 @@ async def attachment_parts(attachments: list[discord.Attachment]) -> list:
                 {
                     "type": "input_image",
                     "image_url": f"data:{attachment.content_type};base64,{encoded_image}",
-                    "detail": "high",
+                    "detail": "low",
                 }
             )
         elif attachment.content_type.startswith("video/"):
@@ -149,7 +149,7 @@ async def attachment_parts(attachments: list[discord.Attachment]) -> list:
                     {
                         "type": "input_image",
                         "image_url": f"data:image/jpeg;base64,{data}",
-                        "detail": "high",
+                        "detail": "low",
                     }
                 )
             parts.append(
