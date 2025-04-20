@@ -501,6 +501,7 @@ async def render_manim(
     try:
         scene = ResponseScene3D if is_3d else ResponseScene
         manim.config.output_file = scene.__name__
+        manim.config.format = "mp4"
         scene_instance = scene(
             title=title,
             description=description,
