@@ -491,6 +491,26 @@ class ResponseScene3D(manim.ThreeDScene, ResponseScene):
     pass
 
 
+def get_code_template(scene: ResponseScene | ResponseScene3D) -> str:
+    base_class_name = "ThreeDScene" if isinstance(scene, ResponseScene3D) else "Scene"
+    code = "\n".join([
+        " " * 8 + line for piece in scene._internal_successful_data for line in piece["code"].split("\n")
+    ])
+    full_code = f"""
+from manim import *
+import math
+import numpy as np
+import random
+import sympy
+
+
+class ResponseScene({base_class_name}):
+    def construct(self) -> None:
+{code}
+""".strip()
+    return full_code
+
+
 async def render_manim(
     message: discord.Message,
     title: str,
@@ -522,14 +542,24 @@ async def render_manim(
                 return "The video was not rendered. Please try again."
             with open(path, "rb") as f:
                 await message.reply(file=discord.File(fp=f, filename=f"{title}.mp4"))
-            return "The video was rendered successfully. The user must watch it in the sent message."
+            return (
+                "The video was rendered successfully. The user must watch it in the sent message.\n"
+                + "The code to build the scene is:\n```python\n" \
+                + get_code_template(scene_instance)
+                + "```"
+            )
         else:
             path = pathlib.Path("media") / "images" / f"{scene.__name__}.png"
             if not path.exists():
                 return "The image was not rendered. Please try again."
             with open(path, "rb") as f:
                 await message.reply(file=discord.File(fp=f, filename=f"{title}.png"))
-            return "The image was rendered successfully. The user must watch it in the sent message."
+            return (
+                "The image was rendered successfully. The user must watch it in the sent message.\n"
+                + "The code to build the scene is:\n```python\n" \
+                + get_code_template(scene_instance)
+                +"```"
+            )
     except Exception as e:
         print(f"Error rendering Manim scene: {e}")
         return "An error occurred while rendering the Manim scene. Please try again."
