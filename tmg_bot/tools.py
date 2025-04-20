@@ -521,7 +521,7 @@ async def render_manim(
     try:
         scene = ResponseScene3D if is_3d else ResponseScene
         manim.config.output_file = scene.__name__
-        manim.config.format = "mp4"
+        manim.config.write_to_movie = True
         scene_instance = scene(
             title=title,
             description=description,
@@ -535,8 +535,7 @@ async def render_manim(
             data=scene_instance._internal_successful_data,
         )
         scene_instance.render()
-        num_plays = scene_instance.renderer.num_plays
-        if num_plays > 0:
+        if manim.config.write_to_movie:
             path = pathlib.Path("media") / "videos" / "1080p60" / f"{scene.__name__}.mp4"
             if not path.exists():
                 return "The video was not rendered. Please try again."
