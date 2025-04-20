@@ -115,8 +115,13 @@ class AI(commands.Cog):
                                             "type": "boolean",
                                             "description": "Whether the scene is 3D or not.",
                                         },
+                                        "type": {
+                                            "type": "string",
+                                            "description": "The type of output.",
+                                            "enum": ["image", "video"],
+                                        }
                                     },
-                                    "required": ["title", "description", "is_3d"],
+                                    "required": ["title", "description", "is_3d", "type"],
                                     "additionalProperties": False,
                                 }
                             },
@@ -252,9 +257,14 @@ class AI(commands.Cog):
                                             "type": "boolean",
                                             "description": "Whether the scene is 3D or not.",
                                         },
+                                        "type": {
+                                            "type": "string",
+                                            "description": "The type of output.",
+                                            "enum": ["image", "video"],
+                                        }
                                     },
                                     "additionalProperties": False,
-                                    "required": ["title", "description", "is_3d"],
+                                    "required": ["title", "description", "is_3d", "type"],
                                 }
                             },
                             {

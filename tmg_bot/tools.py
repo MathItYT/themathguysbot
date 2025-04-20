@@ -8,7 +8,7 @@ from typing import Any
 from io import StringIO
 import json
 import time
-from .instructions import MANIM_BUILDER_INSTRUCTIONS, MATH_SOLVE_INSTRUCTIONS, BING_SEARCH_INSTRUCTIONS, CHECK_IF_STATIC_INSTRUCTIONS
+from .instructions import MANIM_BUILDER_INSTRUCTIONS, MATH_SOLVE_INSTRUCTIONS, BING_SEARCH_INSTRUCTIONS
 import discord
 import manimpango
 import inspect
@@ -240,11 +240,12 @@ class ResponseScene(manim.Scene):
     ]
     """Scene class for rendering responses."""
 
-    def __init__(self, title: str, description: str, data: list[dict[str, Any]] | None = None, **kwargs):
+    def __init__(self, title: str, description: str, type: str, data: list[dict[str, Any]] | None = None, **kwargs):
         super().__init__(**kwargs)
         self._internal_title = title
         self._internal_description = description
         self._internal_data = data
+        self._internal_type = type
         self._internal_finished: bool = False
         self._internal_successful_data = []
         self._internal_reset_scope()
@@ -268,6 +269,7 @@ class ResponseScene(manim.Scene):
         json.dump({
             "title": self._internal_title,
             "description": self._internal_description,
+            "type": self._internal_type,
         }, sio, ensure_ascii=False, indent=4)
         sio.seek(0)
         first_time: bool = True
@@ -511,40 +513,12 @@ class ResponseScene({base_class_name}):
     return full_code
 
 
-def is_video(code_template: str) -> bool:
-    """Check if the scene is a video."""
-    response = client.responses.create(
-        model="gpt-4.1",
-        instructions=CHECK_IF_STATIC_INSTRUCTIONS,
-        input=code_template,
-        temperature=0.0,
-        text={
-            "format": {
-                "type": "json_schema",
-                "name": "entities",
-                "schema": {
-                    "type": "object",
-                    "properties": {
-                        "static": {
-                            "type": "boolean",
-                            "description": "True if the scene is static (image), False if it's a video.",
-                        },
-                    },
-                    "required": ["static"],
-                    "additionalProperties": False
-                },
-            }
-        }
-    )
-    result = json.loads(response.output_text)
-    return not result["static"]
-
-
 async def render_manim(
     message: discord.Message,
     title: str,
     description: str,
     is_3d: bool,
+    type: str
 ) -> str:
     """Render a Manim scene and send it to the Discord channel."""
     try:
@@ -554,6 +528,7 @@ async def render_manim(
         scene_instance = scene(
             title=title,
             description=description,
+            type=type,
             data=None,
         )
         scene_instance.render()
@@ -561,11 +536,12 @@ async def render_manim(
         scene_instance = scene(
             title=title,
             description=description,
+            type=type,
             data=scene_instance._internal_successful_data,
         )
         code_template = get_code_template(scene_instance)
         scene_instance.render()
-        if is_video(code_template):
+        if type == "video":
             path = pathlib.Path("media") / "videos" / "1080p60" / f"{scene.__name__}.mp4"
             if not path.exists():
                 return "The video was not rendered. Please try again."
