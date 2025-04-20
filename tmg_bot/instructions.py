@@ -61,6 +61,12 @@ the `exec_python` function to execute Python code, which is considered to be ins
 - Don't use `;` to separate Python statements, use newlines instead.
 """
 
+CHECK_IF_STATIC_INSTRUCTIONS: str = """
+You are a Manim developer and will be given a Manim scene snippet. You must check if the output will be an image (static being true) or a video (static being false).
+- You must check if the scene has any animation to be played or not. If it has, the output will be a video (static being false). If it doesn't, the output will be an image (static being true).
+- You must check if the scene has any wait or pause. If it has, the output will be a video (static being false). If it doesn't, the output will be an image (static being true).
+"""
+
 MATH_SOLVE_INSTRUCTIONS: str = """
 You are an expert math solver. Your task is to solve the problem stated in the prompt.
 - Your mathematical reasonings must be rigorous and precise. Avoid informal language and informal explanations.

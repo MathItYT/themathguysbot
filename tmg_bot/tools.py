@@ -8,7 +8,7 @@ from typing import Any
 from io import StringIO
 import json
 import time
-from .instructions import MANIM_BUILDER_INSTRUCTIONS, MATH_SOLVE_INSTRUCTIONS, BING_SEARCH_INSTRUCTIONS
+from .instructions import MANIM_BUILDER_INSTRUCTIONS, MATH_SOLVE_INSTRUCTIONS, BING_SEARCH_INSTRUCTIONS, CHECK_IF_STATIC_INSTRUCTIONS
 import discord
 import manimpango
 import inspect
@@ -511,6 +511,35 @@ class ResponseScene({base_class_name}):
     return full_code
 
 
+def is_video(code_template: str) -> bool:
+    """Check if the scene is a video."""
+    response = client.responses.create(
+        model="gpt-4.1",
+        instructions=CHECK_IF_STATIC_INSTRUCTIONS,
+        input=code_template,
+        temperature=0.0,
+        text={
+            "format": {
+                "type": "json_schema",
+                "name": "entities",
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "static": {
+                            "type": "boolean",
+                            "description": "True if the scene is static (image), False if it's a video.",
+                        },
+                    },
+                    "required": ["static"],
+                    "additionalProperties": False
+                },
+            }
+        }
+    )
+    result = json.loads(response.output_text)
+    return not result["static"]
+
+
 async def render_manim(
     message: discord.Message,
     title: str,
@@ -534,8 +563,9 @@ async def render_manim(
             description=description,
             data=scene_instance._internal_successful_data,
         )
+        code_template = get_code_template(scene_instance)
         scene_instance.render()
-        if manim.config.write_to_movie:
+        if is_video(code_template):
             path = pathlib.Path("media") / "videos" / "1080p60" / f"{scene.__name__}.mp4"
             if not path.exists():
                 return "The video was not rendered. Please try again."
@@ -544,7 +574,7 @@ async def render_manim(
             return (
                 "The video was rendered successfully. The user must watch it in the sent message.\n"
                 + "The code to build the scene is:\n```python\n" \
-                + get_code_template(scene_instance)
+                + code_template
                 + "```"
             )
         else:
@@ -556,7 +586,7 @@ async def render_manim(
             return (
                 "The image was rendered successfully. The user must watch it in the sent message.\n"
                 + "The code to build the scene is:\n```python\n" \
-                + get_code_template(scene_instance)
+                + code_template
                 +"```"
             )
     except Exception as e:
