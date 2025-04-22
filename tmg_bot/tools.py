@@ -15,6 +15,7 @@ import inspect
 import os
 from .client import project_client, client
 from azure.ai.projects.models import BingGroundingTool, MessageRole
+from .supabase_client import supabase
 
 bing_connection = project_client.connections.get(connection_name=os.getenv("AZURE_BING_CONNECTION_NAME"))
 conn_id = bing_connection.id
@@ -276,7 +277,7 @@ class ResponseScene(manim.Scene):
         while not self._internal_finished:
             response = client.responses.create(
                 model="gpt-4.1",
-                instructions=MANIM_BUILDER_INSTRUCTIONS,
+                instructions=MANIM_BUILDER_FORMATTED_INSTRUCTIONS,
                 input=sio.getvalue() if first_time else outputs,
                 temperature=0.0,
                 tools=self.tools,
@@ -496,7 +497,7 @@ class ResponseScene3D(manim.ThreeDScene, ResponseScene):
 def get_code_template(scene: ResponseScene | ResponseScene3D) -> str:
     base_class_name = "ThreeDScene" if isinstance(scene, ResponseScene3D) else "Scene"
     code = "\n".join([
-        " " * 8 + line for piece in scene._internal_successful_data for line in piece["code"].split("\n")
+        " " * 8 + line for piece in scene._internal_data for line in piece["code"].split("\n")
     ])
     full_code = f"""
 from manim import *
@@ -511,6 +512,44 @@ class ResponseScene({base_class_name}):
 {code}
 """.strip()
     return full_code
+
+
+def load_manim_rag_dataset() -> str:
+    """Load the Manim dataset, with well-done examples."""
+    # Select videos with feedback greater than 0.7
+    dataset = (
+        supabase
+        .table("videos_dataset")
+        .select("*")
+        .filter("feedback", "gt", 0.7)
+        .filter("total_votes", "gt", 5)
+        .execute()
+    )
+    dataset = dataset.data
+    if len(dataset) == 0:
+        return ""
+    taken = [(row["title"], row["description"], row["code"]) for row in dataset]
+    formatted_examples = []
+    for title, description, code in taken:
+        formatted_examples.append(
+            f"- **Title**: {title}\n"
+            f"  **Description**: {description}\n"
+            f"  **Code**:\n"
+            f"  ```python\n{code}\n```\n"
+        )
+    formatted_examples = "\n\n".join(formatted_examples)
+    
+    rag_dataset = f"""
+Here you will see well done examples with title, description, and the code snippet that well done the job:
+
+{formatted_examples}
+"""
+    return rag_dataset
+
+
+MANIM_BUILDER_FORMATTED_INSTRUCTIONS: str = MANIM_BUILDER_INSTRUCTIONS.format(
+    rag_dataset=load_manim_rag_dataset()
+)
 
 
 async def render_manim(
@@ -546,7 +585,20 @@ async def render_manim(
             if not path.exists():
                 return "The video was not rendered. Please try again."
             with open(path, "rb") as f:
-                await message.reply(file=discord.File(fp=f, filename=f"{title}.mp4"))
+                msg = await message.reply(content="Reacciona a este mensaje, por favor. Tu feedback es importante.", file=discord.File(fp=f, filename=f"{title}.mp4"))
+            await msg.add_reaction("👍")
+            await msg.add_reaction("👎")
+            supabase.table("videos_dataset").insert(
+                {
+                    "title": title,
+                    "description": description,
+                    "code": "\n\n".join([data["code"] for data in scene_instance._internal_data]),
+                    "positive_votes": 0,
+                    "total_votes": 0,
+                    "feedback": None,
+                    "id": str(msg.id),
+                }
+            ).execute()
             return (
                 "The video was rendered successfully. The user must watch it in the sent message.\n"
                 + "The code to build the scene is:\n```python\n" \
@@ -558,7 +610,20 @@ async def render_manim(
             if not path.exists():
                 return "The image was not rendered. Please try again."
             with open(path, "rb") as f:
-                await message.reply(file=discord.File(fp=f, filename=f"{title}.png"))
+                msg = await message.reply(content="Reacciona a este mensaje, por favor. Tu feedback es importante.", file=discord.File(fp=f, filename=f"{title}.png"))
+            await msg.add_reaction("👍")
+            await msg.add_reaction("👎")
+            supabase.table("videos_dataset").insert(
+                {
+                    "title": title,
+                    "description": description,
+                    "code": "\n\n".join([data["code"] for data in scene_instance._internal_data]),
+                    "positive_votes": 0,
+                    "total_votes": 0,
+                    "feedback": None,
+                    "id": str(msg.id),
+                }
+            ).execute()
             return (
                 "The image was rendered successfully. The user must watch it in the sent message.\n"
                 + "The code to build the scene is:\n```python\n" \

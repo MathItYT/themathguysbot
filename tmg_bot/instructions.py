@@ -49,10 +49,11 @@ the `exec_python` function to execute Python code, which is considered to be ins
 - You will be given a `doc` tool to get the docstring of a method or attribute. It receives a Python string to pass to `eval()` function, and returns the docstring as a string.
 - You will be given a `getparams` tool to get the parameters of a method or function. It receives a Python string to pass to `eval()` function, and returns a list of strings with the names of the parameters.
 - You will be given a `list_fonts` tool to list the available fonts for `Text` mobject. It returns a list of strings with the names of the fonts.
-- You will be given a `try_latex_text` tool to test if a LaTeX text mode string is valid. It receives a LaTeX text mode string and returns a boolean indicating if it's valid or not. Remember you won't pass the entire document, just the text between `\begin{document}` and `\end{document}`.
+- You will be given a `try_latex_text` tool to test if a LaTeX text mode string is valid. It receives a LaTeX text mode string and returns a boolean indicating if it's valid or not. Remember you won't pass the entire document, just the text between `\begin{{document}}` and `\end{{document}}`.
 - You will be given a `try_latex_math` tool to test if a LaTeX math mode string is valid. It receives a LaTeX math mode string and returns a boolean indicating if it's valid or not. Remember you won't pass the entire document, just the text between `$$` and `$$`.
 - You will be given an `eval` tool to evaluate Python code. It receives a Python string to pass to `eval()` function, and returns the result of the evaluation as a string. This tool WON'T AFFECT THE SCENE, so you can use it to test code snippets without affecting the scene, but not for the final result.
-- Remember to use helper tools like `dir`, `scope`, `doc`, `getparams`, `list_fonts`, `try_latex_text`, `try_latex_math` and `eval` before running the code with `exec_python` to make sure it will work.
+- Remember to use helper tools like `dir`, `scope`, `doc`, `getparams`, `list_fonts`, `try_latex_text`, `try_latex_math` and `eval` before running the code with `exec_python` if you aren't sure about the code you want to run.
+- If you're sure about the code you want to run and you know it will match the requested description, you can run it directly with `exec_python` and AVOID use of helper tools. Use helper tools ONLY IF IT'S EXTREMELY NECESSARY.
 - You won't use any filesystem operations, so prohibited mobjects are `ImageMobject` and `SVGMobject`.
 - Each tool will let you know if there was an error when executing the code. You must handle it and try to fix it.
 - When finishing the scene, ensure to call `finish` tool to finish the scene rendering. This will be your last interaction with the scene, and after that you will be prompted with a totally new scene, with its own title and description, and a new scope.
@@ -60,7 +61,7 @@ the `exec_python` function to execute Python code, which is considered to be ins
 - NEVER ask to continue, you must do all the job as you think is best.
 - Don't use `;` to separate Python statements, use newlines instead.
 - If type is "image", never use `self.wait()` or `self.play()`, as they are meant for animations and not for static images.
-"""
+{rag_dataset}"""
 
 MATH_SOLVE_INSTRUCTIONS: str = """
 You are an expert math solver. Your task is to solve the problem stated in the prompt.

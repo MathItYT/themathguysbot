@@ -11,6 +11,7 @@ from .instructions import ACADEMIC_INSTRUCTIONS
 from .regex import tex_message
 from .locks import ai_lock
 from .client import client
+from .supabase_client import supabase
 
 
 class AI(commands.Cog):
@@ -35,6 +36,81 @@ class AI(commands.Cog):
         if general is not None and rules is not None and aplus is not None:
             await general.send(f"¡Bienvenido {member.mention} a The Math Guys! Recuerda leer todas las reglas en {rules.mention} y verificarte ahí mismo. ¡Disfruta tu estadía! {aplus}")
     
+    # Reaction
+    @commands.Cog.listener()
+    async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent) -> None:
+        if payload.user_id == self.bot.user.id:
+            return
+        channel = self.bot.get_channel(payload.channel_id)
+        if channel is None:
+            return
+        msg = await channel.fetch_message(payload.message_id)
+        if msg is None:
+            return
+        reaction = discord.utils.get(msg.reactions, emoji=payload.emoji.name)
+        if reaction is None:
+            return
+        user = self.bot.get_user(payload.user_id)
+        if user is None:
+            return
+        msg_in_supabase = supabase.table("videos_dataset").select("*").eq("id", str(msg.id)).execute()
+        # Checks if user reacted to the message in Discord
+        if msg_in_supabase.data:
+            positive_reaction = [r for r in msg.reactions if r.emoji == "👍"][0]
+            negative_reaction = [r for r in msg.reactions if r.emoji == "👎"][0]
+            if reaction.emoji in ["👍", "👎"]:
+                async for u in positive_reaction.users():
+                    if u == user and reaction.emoji == "👎":
+                        await positive_reaction.remove(user)
+                async for u in negative_reaction.users():
+                    if u == user and reaction.emoji == "👍":
+                        await negative_reaction.remove(user)
+                await msg.reply(f"¡Gracias por tu feedback {user.mention}!")
+                # Fetch message again to get the updated reaction counts
+                msg = await channel.fetch_message(payload.message_id)
+                if msg is None:
+                    return
+                positive_reaction = [r for r in msg.reactions if r.emoji == "👍"][0]
+                negative_reaction = [r for r in msg.reactions if r.emoji == "👎"][0]
+                positive_votes = positive_reaction.count - 1
+                negative_votes = negative_reaction.count - 1
+                total_votes = positive_votes + negative_votes
+                feedback = positive_votes / total_votes if total_votes > 0 else None
+                supabase.table("videos_dataset").update({"positive_votes": positive_votes, "total_votes": total_votes, "feedback": feedback}).eq("id", str(msg.id)).execute()
+
+    @commands.Cog.listener()
+    async def on_raw_reaction_remove(self, payload: discord.RawReactionActionEvent) -> None:
+        if payload.user_id == self.bot.user.id:
+            return
+        channel = self.bot.get_channel(payload.channel_id)
+        if channel is None:
+            return
+        msg = await channel.fetch_message(payload.message_id)
+        if msg is None:
+            return
+        reaction = discord.utils.get(msg.reactions, emoji=payload.emoji.name)
+        if reaction is None:
+            return
+        user = self.bot.get_user(payload.user_id)
+        if user is None:
+            return
+        msg_in_supabase = supabase.table("videos_dataset").select("*").eq("id", str(msg.id)).execute()
+        if msg_in_supabase.data:
+            positive_reaction = [r for r in msg.reactions if r.emoji == "👍"][0]
+            negative_reaction = [r for r in msg.reactions if r.emoji == "👎"][0]
+            if reaction.emoji in ["👍", "👎"]:
+                # Fetch message again to get the updated reaction counts
+                msg = await channel.fetch_message(payload.message_id)
+                if msg is None:
+                    return
+                positive_reaction = [r for r in msg.reactions if r.emoji == "👍"][0]
+                negative_reaction = [r for r in msg.reactions if r.emoji == "👎"][0]
+                positive_votes = positive_reaction.count - 1
+                negative_votes = negative_reaction.count - 1
+                total_votes = positive_votes + negative_votes
+                feedback = positive_votes / total_votes if total_votes > 0 else None
+                supabase.table("videos_dataset").update({"positive_votes": positive_votes, "total_votes": total_votes, "feedback": feedback}).eq("id", str(msg.id)).execute()
+
     @commands.Cog.listener()
     async def on_message_edit(self, before: discord.Message, after: discord.Message) -> None:
         if after.author == self.bot.user:
