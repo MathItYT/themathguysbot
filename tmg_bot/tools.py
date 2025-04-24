@@ -522,7 +522,7 @@ def load_manim_rag_dataset() -> str:
         .table("videos_dataset")
         .select("*")
         .filter("feedback", "gt", 0.7)
-        .filter("total_votes", "gt", 5)
+        .filter("total_votes", "gt", 1)
         .execute()
     )
     dataset = dataset.data
