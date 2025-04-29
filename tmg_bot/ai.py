@@ -15,11 +15,13 @@ from .supabase_client import supabase
 
 
 mecenas: int = 1357139735700574218
+message_limit: int = 500
 
 
 class AI(commands.Cog):
     current_input: list[dict[str, Any]] = []
     previous_response_id: str | None = None
+    message_count: int = 0
 
     def __init__(self, bot: discord.Bot) -> None:
         self.bot = bot
@@ -162,6 +164,10 @@ class AI(commands.Cog):
                 }
             )
             self.current_input[-1]["content"].extend(await attachment_parts(after.attachments))
+            self.message_count += 1
+            if self.message_count > message_limit:
+                self.previous_response_id = None
+                self.message_count = 0
             if self.bot.user.mentioned_in(after) or isinstance(after.channel, discord.DMChannel):
                 user_input = self.current_input.copy()
                 there_was_function_call: bool = True
@@ -320,6 +326,10 @@ class AI(commands.Cog):
                 }
             )
             self.current_input[-1]["content"].extend(await attachment_parts(message.attachments))
+            self.message_count += 1
+            if self.message_count > message_limit:
+                self.previous_response_id = None
+                self.message_count = 0
             if self.bot.user.mentioned_in(message) or isinstance(message.channel, discord.DMChannel):
                 user_input = self.current_input.copy()
                 there_was_function_call: bool = True

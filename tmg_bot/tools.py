@@ -91,8 +91,10 @@ def bing_search(
 
 
 class ResponseScene(manim.Scene):
-    manim_builder_previous_response_id: str | None = None
-    tools: list = [
+    _internal_manim_builder_previous_response_id: str | None = None
+    _internal_prompt_count: int = 0
+    _internal_prompt_limit: int = 500
+    _internal_tools: list = [
         {
             "type": "function",
             "name": "exec_python",
@@ -265,6 +267,13 @@ class ResponseScene(manim.Scene):
             self._internal_construct_with_data()
     
     def _internal_get_data(self) -> None:
+        global MANIM_BUILDER_FORMATTED_INSTRUCTIONS
+        if self._internal_prompt_count > self._internal_prompt_limit:
+            self._internal_manim_builder_previous_response_id = None
+            self._internal_prompt_count = 0
+            MANIM_BUILDER_FORMATTED_INSTRUCTIONS = MANIM_BUILDER_INSTRUCTIONS.format(
+                rag_dataset=load_manim_rag_dataset()
+            )
         self._internal_successful_data = []
         sio = StringIO()
         json.dump({
@@ -275,18 +284,19 @@ class ResponseScene(manim.Scene):
         sio.seek(0)
         first_time: bool = True
         while not self._internal_finished:
+            self._internal_prompt_count += 1
             response = client.responses.create(
                 model="gpt-4.1",
                 instructions=MANIM_BUILDER_FORMATTED_INSTRUCTIONS,
                 input=sio.getvalue() if first_time else outputs,
                 temperature=0.0,
-                tools=self.tools,
-                previous_response_id=self.manim_builder_previous_response_id,
+                tools=self._internal_tools,
+                previous_response_id=self._internal_manim_builder_previous_response_id,
             )
             outputs = []
             first_time = False
             response_id = response.id
-            self.manim_builder_previous_response_id = response_id
+            self._internal_manim_builder_previous_response_id = response_id
             output = response.output
             for item in output:
                 if not isinstance(item, dict):
@@ -636,13 +646,19 @@ async def render_manim(
 
 
 last_math_response_id: str | None = None
+prompt_count: int = 0
+prompt_limit: int = 500
 
 
 def solve_math(
     problem_statement: str
 ) -> str:
     """Create a math response using reasoning model."""
-    global last_math_response_id
+    global last_math_response_id, prompt_count, prompt_limit
+    prompt_count += 1
+    if prompt_count > prompt_limit:
+        last_math_response_id = None
+        prompt_count = 0
     try:
         there_was_function_call: bool = True
         text_parts = []
