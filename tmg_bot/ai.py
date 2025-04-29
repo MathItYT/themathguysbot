@@ -14,6 +14,9 @@ from .client import client
 from .supabase_client import supabase
 
 
+mecenas: int = 1357139735700574218
+
+
 class AI(commands.Cog):
     current_input: list[dict[str, Any]] = []
     previous_response_id: str | None = None
@@ -115,6 +118,19 @@ class AI(commands.Cog):
     async def on_message_edit(self, before: discord.Message, after: discord.Message) -> None:
         if after.author == self.bot.user:
             return
+        if isinstance(after.channel, discord.DMChannel):
+            rol_mecenas = discord.utils.get(self.bot.guilds[0].roles, id=mecenas)
+            guild_member = discord.utils.get(self.bot.guilds[0].members, id=after.author.id)
+            if guild_member is None:
+                await after.reply(
+                    content="¿Quieres recibir ayuda de la IA por privado? Para eso, debes ser miembro y además mecenas de The Math Guys. Si quieres unirte al servidor, únete en https://discord.gg/the-math-guys, y para unirte al club de sus donadores, puedes hacerlo en el siguiente enlace: https://patreon.com/MathLike\nRecuerda avisar a MathLike cuando hayas donado para que te den el rol.",
+                )
+                return
+            if rol_mecenas not in guild_member.roles:
+                await after.reply(
+                    content="¿Quieres recibir ayuda de la IA por privado? Para eso, debes ser mecenas de The Math Guys. Si quieres unirte al club de los donadores, puedes hacerlo en el siguiente enlace: https://patreon.com/MathLike\nRecuerda avisar a MathLike cuando hayas donado para que te den el rol.",
+                )
+                return
         async with ai_lock:
             io = StringIO()
             json.dump(
@@ -135,16 +151,19 @@ class AI(commands.Cog):
             io.seek(0)
             self.current_input.append(
                 {
+                    "role": "user",
+                    "content": [],
+                }
+            )
+            self.current_input[-1]["content"].append(
+                {
                     "type": "input_text",
                     "text": io.getvalue(),
                 }
             )
-            self.current_input.extend(await attachment_parts(after.attachments))
+            self.current_input[-1]["content"].extend(await attachment_parts(after.attachments))
             if self.bot.user.mentioned_in(after) or isinstance(after.channel, discord.DMChannel):
-                user_input = {
-                    "role": "user",
-                    "content": self.current_input.copy(),
-                }
+                user_input = self.current_input.copy()
                 there_was_function_call: bool = True
                 self.current_input.clear()
                 while there_was_function_call:
@@ -257,6 +276,19 @@ class AI(commands.Cog):
     async def on_message(self, message: discord.Message) -> None:
         if message.author == self.bot.user:
             return
+        if isinstance(message.channel, discord.DMChannel):
+            rol_mecenas = discord.utils.get(self.bot.guilds[0].roles, id=mecenas)
+            guild_member = discord.utils.get(self.bot.guilds[0].members, id=message.author.id)
+            if guild_member is None:
+                await message.reply(
+                    content="¿Quieres recibir ayuda de la IA por privado? Para eso, debes ser miembro y además mecenas de The Math Guys. Si quieres unirte al servidor, únete en https://discord.gg/the-math-guys, y para unirte al club de sus donadores, puedes hacerlo en el siguiente enlace: https://patreon.com/MathLike\nRecuerda avisar a MathLike cuando hayas donado para que te den el rol.",
+                )
+                return
+            if rol_mecenas not in guild_member.roles:
+                await message.reply(
+                    content="¿Quieres recibir ayuda de la IA por privado? Para eso, debes ser mecenas de The Math Guys. Si quieres unirte al club de los donadores, puedes hacerlo en el siguiente enlace: https://patreon.com/MathLike\nRecuerda avisar a MathLike cuando hayas donado para que te den el rol.",
+                )
+                return
         async with ai_lock:
             io = StringIO()
             json.dump(
@@ -277,16 +309,19 @@ class AI(commands.Cog):
             io.seek(0)
             self.current_input.append(
                 {
+                    "role": "user",
+                    "content": [],
+                }
+            )
+            self.current_input[-1]["content"].append(
+                {
                     "type": "input_text",
                     "text": io.getvalue(),
                 }
             )
-            self.current_input.extend(await attachment_parts(message.attachments))
+            self.current_input[-1]["content"].extend(await attachment_parts(message.attachments))
             if self.bot.user.mentioned_in(message) or isinstance(message.channel, discord.DMChannel):
-                user_input = [{
-                    "role": "user",
-                    "content": self.current_input.copy(),
-                }]
+                user_input = self.current_input.copy()
                 there_was_function_call: bool = True
                 self.current_input.clear()
                 while there_was_function_call:
