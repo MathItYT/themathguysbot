@@ -14,7 +14,7 @@ import pdf2image
 from .regex import tex_message
 from .tex_templates import DEFAULT_TEX_TEMPLATE
 from .client import client
-from .regex import mentions, double_quotes, single_quotes
+from .regex import mentions, double_quotes, single_quotes, markdown_list
 
 
 def has_audio(filename: str) -> bool:
@@ -195,7 +195,10 @@ def fix_tex_bugs(text: str) -> str:
     force_dollars = tex_message.sub(
         lambda m: change_prefix_and_suffix(m.group(0)), beautify_quotes
     )
-    return force_dollars
+    result = markdown_list.sub(
+        lambda m: f"* {m.group(2)}", force_dollars
+    )
+    return result
 
 
 async def render_tex(message: discord.Message, contents: str) -> None:
