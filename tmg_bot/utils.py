@@ -29,13 +29,13 @@ def has_audio(filename: str) -> bool:
 
 def mp4_to_mp3(mp4_path: str, mp3_path: str) -> None:
     """Convert MP4 file to MP3."""
-    command = f"ffmpeg -i {mp4_path} -vn -ar 44100 -ac 2 -b:a 192k {mp3_path}"
+    command = f"ffmpeg -y -i {mp4_path} -vn -ar 44100 -ac 2 -b:a 192k {mp3_path}"
     subprocess.run(command, shell=True, check=True)
 
 
 def audio_to_mp3(audio_path: str, mp3_path: str) -> None:
     """Convert audio file to MP3."""
-    command = f"ffmpeg -i {audio_path} -vn -ar 44100 -ac 2 -b:a 192k {mp3_path}"
+    command = f"ffmpeg -y -i {audio_path} -vn -ar 44100 -ac 2 -b:a 192k {mp3_path}"
     subprocess.run(command, shell=True, check=True)
 
 
