@@ -33,6 +33,12 @@ def mp4_to_mp3(mp4_path: str, mp3_path: str) -> None:
     subprocess.run(command, shell=True, check=True)
 
 
+def audio_to_mp3(audio_path: str, mp3_path: str) -> None:
+    """Convert audio file to MP3."""
+    command = f"ffmpeg -i {audio_path} -vn -ar 44100 -ac 2 -b:a 192k {mp3_path}"
+    subprocess.run(command, shell=True, check=True)
+
+
 def process_video(video_data: bytes) -> list:
     """Process video data and return parts for OpenAI API."""
     with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_video:
@@ -113,18 +119,24 @@ async def attachment_parts(attachments: list[discord.Attachment]) -> list:
             parts.extend(process_video(video_data))
         elif attachment.content_type.startswith("audio/"):
             audio_data = await attachment.read()
-            transcription = client.audio.transcriptions.create(
-                file=audio_data,
-                model="whisper"
-            )
-            text = transcription.text
-            print("Transcription:", text)
-            parts.append(
-                {
-                    "type": "input_text",
-                    "text": f"An audio has been sent.\n\n# Transcription\n{text}",
-                }
-            )
+            with tempfile.NamedTemporaryFile(delete=False) as temp_audio:
+                temp_audio.write(audio_data)
+                temp_audio.seek(0)
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as temp_mp3:
+                    audio_to_mp3(temp_audio.name, temp_mp3.name)
+                    temp_mp3.seek(0)
+                    transcription = client.audio.transcriptions.create(
+                        file=temp_mp3.read(),
+                        model="whisper"
+                    )
+                    text = transcription.text
+                    print("Transcription:", text)
+                    parts.append(
+                        {
+                            "type": "input_text",
+                            "text": f"An audio has been sent.\n\n# Transcription\n{text}",
+                        }
+                    )
         elif attachment.content_type.startswith("application/pdf"):
             pdf_data = await attachment.read()
             images = pdf2image.convert_from_bytes(pdf_data)
