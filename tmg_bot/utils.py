@@ -3,7 +3,6 @@ import emoji
 import pathlib
 import subprocess
 import base64
-import os
 import cv2
 from .client import client
 import tempfile
@@ -114,22 +113,18 @@ async def attachment_parts(attachments: list[discord.Attachment]) -> list:
             parts.extend(process_video(video_data))
         elif attachment.content_type.startswith("audio/"):
             audio_data = await attachment.read()
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as temp_audio:
-                temp_audio.write(audio_data)
-                temp_audio.seek(0)
-                transcription = client.audio.transcriptions.create(
-                    file=temp_audio.read(),
-                    model="whisper"
-                )
-                text = transcription.text
-                print("Transcription:", text)
-                parts.append(
-                    {
-                        "type": "input_text",
-                        "text": f"An audio has been sent.\n\n# Transcription\n{text}",
-                    }
-                )
-                os.remove(temp_audio.name)
+            transcription = client.audio.transcriptions.create(
+                file=audio_data,
+                model="whisper"
+            )
+            text = transcription.text
+            print("Transcription:", text)
+            parts.append(
+                {
+                    "type": "input_text",
+                    "text": f"An audio has been sent.\n\n# Transcription\n{text}",
+                }
+            )
         elif attachment.content_type.startswith("application/pdf"):
             pdf_data = await attachment.read()
             images = pdf2image.convert_from_bytes(pdf_data)
