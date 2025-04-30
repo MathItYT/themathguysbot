@@ -75,7 +75,7 @@ def process_video(video_data: bytes) -> list:
                 mp4_to_mp3(temp_video.name, temp_audio.name)
                 temp_audio.seek(0)
                 transcription = client.audio.transcriptions.create(
-                    file=open(temp_audio.name, "rb"),
+                    file=temp_audio.read(),
                     model="whisper"
                 )
                 text = transcription.text
@@ -118,7 +118,7 @@ async def attachment_parts(attachments: list[discord.Attachment]) -> list:
                 temp_audio.write(audio_data)
                 temp_audio.seek(0)
                 transcription = client.audio.transcriptions.create(
-                    file=open(temp_audio.name, "rb"),
+                    file=temp_audio.read(),
                     model="whisper"
                 )
                 text = transcription.text
