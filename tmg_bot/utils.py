@@ -156,7 +156,7 @@ async def attachment_parts(attachments: list[discord.Attachment]) -> list:
                     {
                         "type": "input_image",
                         "image_url": f"data:image/jpeg;base64,{data}",
-                        "detail": "low",
+                        "detail": "high",
                     }
                 )
             parts.append(
