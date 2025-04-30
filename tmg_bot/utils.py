@@ -70,7 +70,7 @@ def process_video(video_data: bytes) -> list:
                     {
                         "type": "input_image",
                         "image_url": f"data:image/jpeg;base64,{data}",
-                        "detail": "low",
+                        "detail": "high",
                     }
                 )
             frame_count += 1
@@ -111,7 +111,7 @@ async def attachment_parts(attachments: list[discord.Attachment]) -> list:
                 {
                     "type": "input_image",
                     "image_url": f"data:{attachment.content_type};base64,{encoded_image}",
-                    "detail": "low",
+                    "detail": "high",
                 }
             )
         elif attachment.content_type.startswith("video/"):
